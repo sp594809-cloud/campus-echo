@@ -16,6 +16,7 @@ import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import RadarPage from '@/pages/radar';
 import ChatPage from '@/pages/chat';
 import CampusNav from '@/components/campus-nav';
+import InstallApp from '@/components/install-app';
 import { Discussion } from '@/components/discussion';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -140,7 +141,7 @@ function AppShell() {
     <Route path="/sign-in/*?"><AuthScreen mode="sign-in" /></Route>
     <Route path="/sign-up/*?"><AuthScreen mode="sign-up" /></Route>
     <Route component={NotFound} />
-  </Switch>{isSignedIn && <CampusNav />}</>;
+  </Switch>{isSignedIn && <><CampusNav /><InstallApp /></>}</>;
 }
 
 function AuthScreen({ mode }: { mode: 'sign-in' | 'sign-up' }) {
@@ -168,7 +169,7 @@ function FeedPage() {
   const nearest = useGetNearestHub(nearestParams, { query: { queryKey: getGetNearestHubQueryKey(nearestParams), enabled: !!coords } });
   const isNearby = !!coords && !!nearest.data?.withinRadius && !!nearest.data.hub;
   const feedParams = { ...(coords ?? { latitude: 0, longitude: 0 }), sort };
-  const feed = useGetFeed(feedParams, { query: { queryKey: getGetFeedQueryKey(feedParams), enabled: isNearby } });
+  const feed = useGetFeed(feedParams, { query: { queryKey: getGetFeedQueryKey(feedParams), enabled: isNearby, refetchInterval: 8000 } });
   const refreshFeed = useCallback(() => {
     if (coords) {
       void cache.invalidateQueries({
@@ -176,15 +177,6 @@ function FeedPage() {
       });
     }
   }, [cache, coords, sort]);
-
-  useEffect(() => {
-    if (!coords || !isNearby) return;
-    const url = `/api/feed/events?latitude=${encodeURIComponent(coords.latitude)}&longitude=${encodeURIComponent(coords.longitude)}`;
-    const stream = new EventSource(url, { withCredentials: true });
-    const refresh = () => { void cache.invalidateQueries({ queryKey: getGetFeedQueryKey(feedParams) }); };
-    stream.addEventListener('update', refresh);
-    return () => { stream.close(); };
-  }, [cache, coords, isNearby, sort]);
 
   const locationWatch = useRef<number | null>(null);
   const locate = useCallback(() => {
@@ -206,11 +198,10 @@ function FeedPage() {
         setCoords(null);
         setLocationState(error.code === error.PERMISSION_DENIED ? 'denied' : 'error');
       },
-      { enableHighAccuracy: false, timeout: 25_000, maximumAge: 15_000 },
+      { enableHighAccuracy: true, timeout: 25_000, maximumAge: 0 },
     );
   }, []);
   useEffect(() => {
-    locate();
     return () => {
       if (locationWatch.current !== null) {
         navigator.geolocation?.clearWatch(locationWatch.current);
@@ -321,7 +312,7 @@ function FeedPage() {
 function LocationPanel({ kind, retry }: { kind: 'denied' | 'error' | 'idle'; retry: () => void }) {
   const denied = kind === 'denied';
   const title = denied ? 'Location stays yours.' : kind === 'error' ? 'Could not find your signal.' : 'Find your campus.';
-  const copy = denied ? 'Campus Echo needs location permission to find your nearest campus. Your coordinates are used for the radius check only.' : kind === 'error' ? 'Something interrupted the location check. Try again when you are ready.' : 'A private location check finds your nearest campus hub. Nothing exact is shown to anyone.';
+  const copy = denied ? 'Campus Echo needs location permission to find your nearest campus. On iPhone, check Settings → Privacy & Security → Location Services → Safari Websites, and the website location permission in Safari. Then retry. Your coordinates are used for the radius check only.' : kind === 'error' ? 'Something interrupted the location check. Try again when you are ready.' : 'A private location check finds your nearest campus hub. Nothing exact is shown to anyone.';
   return <div className="rounded-3xl border border-white/[.09] bg-[#121117] px-6 py-10 text-center md:px-12 md:py-14" data-testid={`status-location-${kind}`}>
     <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-primary/20 bg-primary/[.08] text-primary"><MapPin className="h-6 w-6" /></div>
     <h2 className="mt-6 font-display text-2xl font-semibold tracking-[-.05em] text-white">{title}</h2><p className="mx-auto mt-3 max-w-md text-sm leading-6 text-white/45">{copy}</p>
