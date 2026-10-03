@@ -64,5 +64,9 @@ try {
   replay.on('error', () => {}); const [, rejection] = await once(replay,'unexpected-response'); assert.equal(rejection.statusCode,401); replay.terminate();
   assert.equal((await call(`/radar/chats/${chatId}/block`,'bob',{})).status,204);
   assert.equal((await call(`/radar/chats/${chatId}/messages`,'alice')).status,404);
+  await engine.exec('DELETE FROM campus_hubs');
+  const unconfigured = await call('/radar/presence','alice',{...coords,accuracyMeters:10},'PUT');
+  assert.equal(unconfigured.status,503);
+  assert.match(String(unconfigured.data.error), /No campus is configured/);
   console.log('PASS: campus auth/geofence, text validation, two-user public chat/replies, privacy, reports, blocking, expiry, rate limit, radar proximity, consent, private chat access, hidden chat, WebSocket delivery and single-use tickets.');
 } finally { server.closeAllConnections(); await new Promise<void>(r=>server.close(()=>r())); await engine.close(); }
