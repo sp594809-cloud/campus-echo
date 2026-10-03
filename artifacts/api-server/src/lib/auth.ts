@@ -2,8 +2,11 @@ import type { RequestHandler, Response } from "express";
 export const requireAuth: RequestHandler = async (req, res, next) => {
   const token = req.headers.authorization?.match(/^Bearer (\S+)$/i)?.[1];
   if (!token) { res.status(401).json({ error: "Sign in to continue." }); return; }
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+  // Public project settings only; no service-role key or password belongs here.
+  const defaultUrl = "https://rztexnwjsmlofmlelovq.supabase.co";
+  const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || defaultUrl).replace(/\/$/, "");
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    (url === defaultUrl ? "sb_publishable_wJ-LMxryEKpLw8IUW9MWGw_tf-zJ1wT" : undefined);
   if (!url || !key) { res.status(503).json({ error: "Sign-in is not configured." }); return; }
   try {
     const result = await fetch(`${url}/auth/v1/user`, { headers: { apikey: key, Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8000) });
