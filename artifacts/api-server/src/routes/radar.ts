@@ -45,9 +45,9 @@ import {
   sendRadarChatMessage,
   sendRadarPing,
   updateRadarPresence,
-  markRadarChatRead,
   RadarServiceError,
 } from "../lib/radarService";
+import { markRadarChatRead } from "../lib/markChatRead";
 import { createRadarSocketTicket } from "../lib/radarSockets";
 import { ensureProfile } from "../lib/profiles";
 
