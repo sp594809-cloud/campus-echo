@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Campus Echo"
+description = "An anonymous campus social app where students share short text posts and polls with people nearby. It is mobile-first, location-aware, and designed around fresh conversations that disappear after a day."
+version = "1.0.0"
+id = "artifacts/campus-echo"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20353
+
+[services.development]
+run = "pnpm --filter @workspace/campus-echo run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/campus-echo", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/campus-echo/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20353"
+BASE_PATH = "/"

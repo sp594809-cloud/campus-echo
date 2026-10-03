@@ -1,0 +1,1228 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API for Campus Echo, a nearby anonymous campus feed.
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: campus
+    description: Campus discovery and location eligibility
+  - name: feed
+    description: Nearby posts, polls, and live feed events
+  - name: posts
+    description: Anonymous text posts, votes, and reports
+  - name: polls
+    description: Anonymous polls, votes, and reports
+  - name: profile
+    description: Current user's anonymous profile
+  - name: radar
+    description: Opt-in nearby presence, anonymous Pings, and consent-based chat
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /hubs:
+    get:
+      operationId: listHubs
+      tags: [campus]
+      summary: List available campus hubs
+      responses:
+        "200":
+          description: Available campus hubs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CampusHub"
+  /hubs/nearest:
+    get:
+      operationId: getNearestHub
+      tags: [campus]
+      summary: Find the closest campus hub and check the geofence
+      parameters:
+        - in: query
+          name: latitude
+          required: true
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+        - in: query
+          name: longitude
+          required: true
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+      responses:
+        "200":
+          description: Nearest hub and radius eligibility
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NearestHubResponse"
+  /me:
+    get:
+      operationId: getMyProfile
+      tags: [profile]
+      summary: Get or create the signed-in user's anonymous profile
+      security:
+        - ClerkSessionCookie: []
+      responses:
+        "200":
+          description: Current user's anonymous profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /feed:
+    get:
+      operationId: getFeed
+      tags: [feed]
+      summary: Get posts and polls at the nearest campus hub
+      security:
+        - ClerkSessionCookie: []
+      parameters:
+        - in: query
+          name: latitude
+          required: true
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+        - in: query
+          name: longitude
+          required: true
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+        - in: query
+          name: sort
+          required: false
+          schema:
+            type: string
+            enum: [recent, popular]
+            default: recent
+      responses:
+        "200":
+          description: Current campus feed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/OutsideGeofence"
+  /feed/events:
+    get:
+      operationId: subscribeToFeed
+      tags: [feed]
+      summary: Subscribe to feed changes with Server-Sent Events
+      security:
+        - ClerkSessionCookie: []
+      parameters:
+        - in: query
+          name: latitude
+          required: true
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+        - in: query
+          name: longitude
+          required: true
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+      responses:
+        "200":
+          description: Feed change events
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/OutsideGeofence"
+  /posts:
+    post:
+      operationId: createPost
+      tags: [posts]
+      summary: Publish an anonymous text post within the nearest campus geofence
+      security:
+        - ClerkSessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostInput"
+      responses:
+        "201":
+          description: Published post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/OutsideGeofence"
+  /posts/{postId}/vote:
+    put:
+      operationId: voteOnPost
+      tags: [posts]
+      summary: Upvote or downvote a post
+      security:
+        - ClerkSessionCookie: []
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostVoteInput"
+      responses:
+        "200":
+          description: Updated post vote
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostVoteResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /posts/{postId}/report:
+    post:
+      operationId: reportPost
+      tags: [posts]
+      summary: Report a post for moderation
+      security:
+        - ClerkSessionCookie: []
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportInput"
+      responses:
+        "200":
+          description: Report accepted and current moderation status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: This user already reported the post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /polls:
+    post:
+      operationId: createPoll
+      tags: [polls]
+      summary: Publish an anonymous poll within the nearest campus geofence
+      security:
+        - ClerkSessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PollInput"
+      responses:
+        "201":
+          description: Published poll
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Poll"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/OutsideGeofence"
+  /polls/{pollId}/vote:
+    put:
+      operationId: voteOnPoll
+      tags: [polls]
+      summary: Cast or change a user's single vote in a poll
+      security:
+        - ClerkSessionCookie: []
+      parameters:
+        - in: path
+          name: pollId
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PollVoteInput"
+      responses:
+        "200":
+          description: Updated poll and vote
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Poll"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /polls/{pollId}/report:
+    post:
+      operationId: reportPoll
+      tags: [polls]
+      summary: Report a poll for moderation
+      security:
+        - ClerkSessionCookie: []
+      parameters:
+        - in: path
+          name: pollId
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportInput"
+      responses:
+        "200":
+          description: Report accepted and current moderation status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: This user already reported the poll
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /radar/presence:
+    put:
+      operationId: updateRadarPresence
+      tags: [radar]
+      summary: Opt in to nearby visibility or refresh the current presence
+      description: Stores only the latest rounded location while opted in. Presence expires quickly and is deleted when hidden.
+      security:
+        - ClerkSessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RadarPresenceInput"
+      responses:
+        "200":
+          description: Presence is visible to nearby eligible users
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarPresenceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/OutsideGeofence"
+        "422":
+          description: GPS accuracy is not sufficient for the 100-meter radar
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: hideRadarPresence
+      tags: [radar]
+      summary: Immediately remove the current user's radar presence
+      security:
+        - ClerkSessionCookie: []
+      responses:
+        "204":
+          description: Presence removed
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /radar/nearby:
+    get:
+      operationId: getNearbyRadarBlips
+      tags: [radar]
+      summary: Find opted-in active users within the 100-meter radar
+      description: Returns only opaque blip tokens, coarse direction sectors, and distance bands. Exact coordinates and account identities are never returned.
+      security:
+        - ClerkSessionCookie: []
+      parameters:
+        - in: query
+          name: latitude
+          required: true
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+        - in: query
+          name: longitude
+          required: true
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+        - in: query
+          name: accuracyMeters
+          required: true
+          schema:
+            type: number
+            minimum: 0
+            maximum: 1000
+      responses:
+        "200":
+          description: Coarse nearby presence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarNearbyResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/OutsideGeofence"
+        "422":
+          description: GPS accuracy is not sufficient for the 100-meter radar
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /radar/inbox:
+    get:
+      operationId: getRadarInbox
+      tags: [radar]
+      summary: Get incoming and outgoing Ping requests and anonymous chats
+      security:
+        - ClerkSessionCookie: []
+      responses:
+        "200":
+          description: Current radar inbox
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarInbox"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /radar/socket-ticket:
+    post:
+      operationId: createRadarSocketTicket
+      tags: [radar]
+      summary: Create a one-use short-lived ticket for the authenticated WebSocket connection
+      security:
+        - ClerkSessionCookie: []
+      responses:
+        "201":
+          description: Single-use WebSocket ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarSocketTicketResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /radar/pings:
+    post:
+      operationId: sendRadarPing
+      tags: [radar]
+      summary: Send a rate-limited anonymous Ping to a visible blip
+      security:
+        - ClerkSessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RadarPingInput"
+      responses:
+        "201":
+          description: Ping created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarPingResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: A recent Ping to this person is already pending
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Ping limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /radar/pings/{pingId}/accept:
+    post:
+      operationId: acceptRadarPing
+      tags: [radar]
+      summary: Accept an incoming Ping and open an anonymous chat
+      security:
+        - ClerkSessionCookie: []
+      parameters:
+        - in: path
+          name: pingId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Anonymous chat opened
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarPingActionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Ping is no longer pending
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /radar/pings/{pingId}/decline:
+    post:
+      operationId: declineRadarPing
+      tags: [radar]
+      summary: Decline an incoming Ping without revealing identity
+      security:
+        - ClerkSessionCookie: []
+      parameters:
+        - in: path
+          name: pingId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Ping declined
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarPingActionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Ping is no longer pending
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /radar/chats/{chatId}/messages:
+    get:
+      operationId: listRadarChatMessages
+      tags: [radar]
+      summary: Load recent messages for an accepted anonymous chat
+      security:
+        - ClerkSessionCookie: []
+      parameters:
+        - in: path
+          name: chatId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Recent chat messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarMessagesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: sendRadarChatMessage
+      tags: [radar]
+      summary: Send a message to the other participant in an accepted anonymous chat
+      security:
+        - ClerkSessionCookie: []
+      parameters:
+        - in: path
+          name: chatId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RadarMessageInput"
+      responses:
+        "201":
+          description: Message saved and sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarMessage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          description: Message limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /radar/blips/{blipId}/block:
+    post:
+      operationId: blockRadarBlip
+      tags: [radar]
+      summary: Block an anonymous radar participant
+      security:
+        - ClerkSessionCookie: []
+      parameters:
+        - in: path
+          name: blipId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Participant blocked
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /radar/blips/{blipId}/report:
+    post:
+      operationId: reportRadarBlip
+      tags: [radar]
+      summary: Privately report an anonymous radar participant
+      security:
+        - ClerkSessionCookie: []
+      parameters:
+        - in: path
+          name: blipId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RadarReportInput"
+      responses:
+        "201":
+          description: Report recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarActionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /radar/chats/{chatId}/block:
+    post:
+      operationId: blockRadarChatParticipant
+      tags: [radar]
+      summary: Block the other anonymous chat participant
+      security:
+        - ClerkSessionCookie: []
+      parameters:
+        - in: path
+          name: chatId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Participant blocked and chat closed
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /radar/chats/{chatId}/report:
+    post:
+      operationId: reportRadarChatParticipant
+      tags: [radar]
+      summary: Privately report the other anonymous chat participant
+      security:
+        - ClerkSessionCookie: []
+      parameters:
+        - in: path
+          name: chatId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RadarReportInput"
+      responses:
+        "201":
+          description: Report recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarActionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+components:
+  securitySchemes:
+    ClerkSessionCookie:
+      type: apiKey
+      in: cookie
+      name: __session
+  responses:
+    Unauthorized:
+      description: Sign in to continue
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    OutsideGeofence:
+      description: The user is outside the 2 km radius of any campus hub
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/GeofenceError"
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: The requested item does not exist or has expired
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    GeofenceError:
+      type: object
+      properties:
+        error:
+          type: string
+        distanceKm:
+          type: number
+        radiusKm:
+          type: number
+      required: [error, radiusKm]
+    CampusHub:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        city:
+          type: string
+        country:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        radiusKm:
+          type: number
+      required: [id, name, city, country, latitude, longitude, radiusKm]
+    NearestHubResponse:
+      type: object
+      properties:
+        hub:
+          anyOf:
+            - $ref: "#/components/schemas/CampusHub"
+            - type: "null"
+        distanceKm:
+          type: ["number", "null"]
+        withinRadius:
+          type: boolean
+      required: [hub, distanceKm, withinRadius]
+    Profile:
+      type: object
+      properties:
+        alias:
+          type: string
+        studentVerified:
+          type: boolean
+      required: [alias, studentVerified]
+    FeedResponse:
+      type: object
+      properties:
+        hub:
+          $ref: "#/components/schemas/CampusHub"
+        distanceKm:
+          type: number
+        posts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Post"
+        polls:
+          type: array
+          items:
+            $ref: "#/components/schemas/Poll"
+        updatedAt:
+          type: string
+          format: date-time
+      required: [hub, distanceKm, posts, polls, updatedAt]
+    Post:
+      type: object
+      properties:
+        id:
+          type: integer
+        alias:
+          type: string
+        content:
+          type: string
+          maxLength: 280
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        score:
+          type: integer
+        myVote:
+          type: ["integer", "null"]
+          enum: [-1, 1, null]
+        reportCount:
+          type: integer
+      required: [id, alias, content, createdAt, expiresAt, score, myVote, reportCount]
+    PostInput:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 280
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+      required: [content, latitude, longitude]
+    PostVoteInput:
+      type: object
+      properties:
+        value:
+          type: integer
+          enum: [-1, 1]
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+      required: [value, latitude, longitude]
+    PostVoteResponse:
+      type: object
+      properties:
+        postId:
+          type: integer
+        score:
+          type: integer
+        myVote:
+          type: ["integer", "null"]
+          enum: [-1, 1, null]
+      required: [postId, score, myVote]
+    ReportInput:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 200
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+      required: [latitude, longitude]
+    ReportResponse:
+      type: object
+      properties:
+        reported:
+          type: boolean
+        reportCount:
+          type: integer
+        hidden:
+          type: boolean
+      required: [reported, reportCount, hidden]
+    Poll:
+      type: object
+      properties:
+        id:
+          type: integer
+        alias:
+          type: string
+        question:
+          type: string
+          maxLength: 200
+        options:
+          type: array
+          minItems: 2
+          maxItems: 4
+          items:
+            $ref: "#/components/schemas/PollOption"
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        totalVotes:
+          type: integer
+        myVoteOptionId:
+          type: ["integer", "null"]
+        reportCount:
+          type: integer
+      required: [id, alias, question, options, createdAt, expiresAt, totalVotes, myVoteOptionId, reportCount]
+    PollOption:
+      type: object
+      properties:
+        id:
+          type: integer
+        text:
+          type: string
+          maxLength: 100
+        votes:
+          type: integer
+        percentage:
+          type: number
+      required: [id, text, votes, percentage]
+    PollInput:
+      type: object
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 200
+        options:
+          type: array
+          minItems: 2
+          maxItems: 4
+          items:
+            type: string
+            minLength: 1
+            maxLength: 100
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+      required: [question, options, latitude, longitude]
+    PollVoteInput:
+      type: object
+      properties:
+        optionId:
+          type: integer
+          minimum: 1
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+      required: [optionId, latitude, longitude]
+    RadarPresenceInput:
+      type: object
+      properties:
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+        accuracyMeters:
+          type: number
+          minimum: 0
+          maximum: 1000
+      required: [latitude, longitude, accuracyMeters]
+    RadarPresenceResponse:
+      type: object
+      properties:
+        visible:
+          type: boolean
+        accuracyMeters:
+          type: integer
+        expiresInSeconds:
+          type: integer
+      required: [visible, accuracyMeters, expiresInSeconds]
+    RadarNearbyResponse:
+      type: object
+      properties:
+        hub:
+          $ref: "#/components/schemas/CampusHub"
+        radiusMeters:
+          type: integer
+        accuracyMeters:
+          type: integer
+        blips:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadarBlip"
+        checkedAt:
+          type: string
+          format: date-time
+      required: [hub, radiusMeters, accuracyMeters, blips, checkedAt]
+    RadarBlip:
+      type: object
+      properties:
+        blipId:
+          type: string
+          format: uuid
+        direction:
+          type: string
+          enum: [N, NE, E, SE, S, SW, W, NW]
+        distanceBand:
+          type: string
+          enum: ["0-25m", "26-50m", "51-75m", "76-100m"]
+      required: [blipId, direction, distanceBand]
+    RadarSocketTicketResponse:
+      type: object
+      properties:
+        ticket:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+      required: [ticket, expiresAt]
+    RadarPingInput:
+      type: object
+      properties:
+        blipId:
+          type: string
+          format: uuid
+      required: [blipId]
+    RadarPingResponse:
+      type: object
+      properties:
+        pingId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending]
+        createdAt:
+          type: string
+          format: date-time
+      required: [pingId, status, createdAt]
+    RadarPingActionResponse:
+      type: object
+      properties:
+        pingId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [accepted, declined]
+        chatId:
+          type: ["string", "null"]
+          format: uuid
+      required: [pingId, status, chatId]
+    RadarInbox:
+      type: object
+      properties:
+        incomingPings:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadarPing"
+        outgoingPings:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadarPing"
+        chats:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadarChatSummary"
+      required: [incomingPings, outgoingPings, chats]
+    RadarPing:
+      type: object
+      properties:
+        pingId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [pending, accepted, declined, expired]
+        direction:
+          type: string
+          enum: [incoming, outgoing]
+        chatId:
+          type: ["string", "null"]
+          format: uuid
+      required: [pingId, createdAt, expiresAt, status, direction, chatId]
+    RadarChatSummary:
+      type: object
+      properties:
+        chatId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        lastMessage:
+          type: ["string", "null"]
+      required: [chatId, createdAt, updatedAt, lastMessage]
+    RadarMessagesResponse:
+      type: object
+      properties:
+        chatId:
+          type: string
+          format: uuid
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadarMessage"
+      required: [chatId, messages]
+    RadarMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        text:
+          type: string
+          maxLength: 500
+        sentAt:
+          type: string
+          format: date-time
+        fromMe:
+          type: boolean
+      required: [id, text, sentAt, fromMe]
+    RadarMessageInput:
+      type: object
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+      required: [text]
+    RadarReportInput:
+      type: object
+      properties:
+        reason:
+          type: string
+          enum: [harassment, unsafe, spam, other]
+        details:
+          type: string
+          maxLength: 200
+      required: [reason]
+    RadarActionResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+      required: [ok]
+

@@ -1,0 +1,18 @@
+{
+  "name": "Campus Echo",
+  "short_name": "Echo",
+  "description": "A nearby-only anonymous campus feed.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0d0c11",
+  "theme_color": "#0d0c11",
+  "icons": [
+    {
+      "src": "logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
