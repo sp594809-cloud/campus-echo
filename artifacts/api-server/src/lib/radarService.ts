@@ -136,6 +136,7 @@ export async function updateRadarPresence(
   }
 
   const nearest = await findNearestHub(input.latitude, input.longitude);
+  if (!nearest) throw new RadarServiceError(503, "No campus is configured yet. Ask the app owner to add your college before enabling Radar.");
   if (!isInsideHub(nearest)) {
     await db
       .delete(radarPresenceTable)
