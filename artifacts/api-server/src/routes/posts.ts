@@ -17,7 +17,7 @@ import {
   postsTable,
 } from "@workspace/db";
 import { authenticatedUserId, requireAuth } from "../lib/auth";
-import { findNearestHub, geofenceErrorPayload, isInsideHub } from "../lib/geofencing";
+import { getCommunityHub } from "../lib/community";
 import { publishCampusFeedUpdate } from "../lib/feedEvents";
 import { ensureProfile } from "../lib/profiles";
 
@@ -35,11 +35,8 @@ router.post("/posts", requireAuth, async (req, res): Promise<void> => {
     res.status(400).json({ error: "Post text cannot be empty." });
     return;
   }
-  const nearest = await findNearestHub(body.data.latitude, body.data.longitude);
-  if (!isInsideHub(nearest)) {
-    res.status(403).json(geofenceErrorPayload(nearest));
-    return;
-  }
+  const nearest = await getCommunityHub();
+  if (!nearest) { res.status(503).json({ error: "The community is not configured yet." }); return; }
 
   const userId = authenticatedUserId(res);
   const profile = await ensureProfile(userId);
@@ -97,11 +94,8 @@ router.put("/posts/:postId/vote", requireAuth, async (req, res): Promise<void> =
     return;
   }
 
-  const nearest = await findNearestHub(body.data.latitude, body.data.longitude);
-  if (!isInsideHub(nearest, post.campusId)) {
-    res.status(403).json(geofenceErrorPayload(nearest));
-    return;
-  }
+  const nearest = await getCommunityHub();
+  if (!nearest) { res.status(503).json({ error: "The community is not configured yet." }); return; }
 
   const userId = authenticatedUserId(res);
   await ensureProfile(userId);
@@ -181,11 +175,8 @@ router.post("/posts/:postId/report", requireAuth, async (req, res): Promise<void
     return;
   }
 
-  const nearest = await findNearestHub(body.data.latitude, body.data.longitude);
-  if (!isInsideHub(nearest, post.campusId)) {
-    res.status(403).json(geofenceErrorPayload(nearest));
-    return;
-  }
+  const nearest = await getCommunityHub();
+  if (!nearest) { res.status(503).json({ error: "The community is not configured yet." }); return; }
 
   const userId = authenticatedUserId(res);
   await ensureProfile(userId);

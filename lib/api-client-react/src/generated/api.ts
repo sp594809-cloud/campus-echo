@@ -401,7 +401,7 @@ export function useGetMyProfile<TData = Awaited<ReturnType<typeof getMyProfile>>
 
 
 
-export const getGetFeedUrl = (params: GetFeedParams,) => {
+export const getGetFeedUrl = (params?: GetFeedParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -419,7 +419,7 @@ export const getGetFeedUrl = (params: GetFeedParams,) => {
 /**
  * @summary Get posts and polls at the nearest campus hub
  */
-export const getFeed = async (params: GetFeedParams, options?: Parameters<typeof customFetch>[1]): Promise<FeedResponse> => {
+export const getFeed = async (params?: GetFeedParams, options?: Parameters<typeof customFetch>[1]): Promise<FeedResponse> => {
 
   return customFetch<FeedResponse>(getGetFeedUrl(params),
   {
@@ -441,7 +441,7 @@ export const getGetFeedQueryKey = (params?: GetFeedParams,) => {
     }
 
 
-export const getGetFeedQueryOptions = <TData = Awaited<ReturnType<typeof getFeed>>, TError = ErrorType<UnauthorizedResponse | OutsideGeofenceResponse>>(params: GetFeedParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFeed>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getGetFeedQueryOptions = <TData = Awaited<ReturnType<typeof getFeed>>, TError = ErrorType<UnauthorizedResponse | OutsideGeofenceResponse>>(params?: GetFeedParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFeed>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -468,7 +468,7 @@ export type GetFeedQueryError = ErrorType<UnauthorizedResponse | OutsideGeofence
  */
 
 export function useGetFeed<TData = Awaited<ReturnType<typeof getFeed>>, TError = ErrorType<UnauthorizedResponse | OutsideGeofenceResponse>>(
- params: GetFeedParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFeed>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: GetFeedParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFeed>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
@@ -485,7 +485,7 @@ export function useGetFeed<TData = Awaited<ReturnType<typeof getFeed>>, TError =
 
 
 
-export const getSubscribeToFeedUrl = (params: SubscribeToFeedParams,) => {
+export const getSubscribeToFeedUrl = (params?: SubscribeToFeedParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -503,7 +503,7 @@ export const getSubscribeToFeedUrl = (params: SubscribeToFeedParams,) => {
 /**
  * @summary Subscribe to feed changes with Server-Sent Events
  */
-export const subscribeToFeed = async (params: SubscribeToFeedParams, options?: Parameters<typeof customFetch>[1]): Promise<string> => {
+export const subscribeToFeed = async (params?: SubscribeToFeedParams, options?: Parameters<typeof customFetch>[1]): Promise<string> => {
 
   return customFetch<string>(getSubscribeToFeedUrl(params),
   {
@@ -525,7 +525,7 @@ export const getSubscribeToFeedQueryKey = (params?: SubscribeToFeedParams,) => {
     }
 
 
-export const getSubscribeToFeedQueryOptions = <TData = Awaited<ReturnType<typeof subscribeToFeed>>, TError = ErrorType<UnauthorizedResponse | OutsideGeofenceResponse>>(params: SubscribeToFeedParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof subscribeToFeed>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getSubscribeToFeedQueryOptions = <TData = Awaited<ReturnType<typeof subscribeToFeed>>, TError = ErrorType<UnauthorizedResponse | OutsideGeofenceResponse>>(params?: SubscribeToFeedParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof subscribeToFeed>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -552,7 +552,7 @@ export type SubscribeToFeedQueryError = ErrorType<UnauthorizedResponse | Outside
  */
 
 export function useSubscribeToFeed<TData = Awaited<ReturnType<typeof subscribeToFeed>>, TError = ErrorType<UnauthorizedResponse | OutsideGeofenceResponse>>(
- params: SubscribeToFeedParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof subscribeToFeed>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: SubscribeToFeedParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof subscribeToFeed>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 

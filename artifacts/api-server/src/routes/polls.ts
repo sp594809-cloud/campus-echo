@@ -18,7 +18,7 @@ import {
   pollsTable,
 } from "@workspace/db";
 import { authenticatedUserId, requireAuth } from "../lib/auth";
-import { findNearestHub, geofenceErrorPayload, isInsideHub } from "../lib/geofencing";
+import { getCommunityHub } from "../lib/community";
 import { publishCampusFeedUpdate } from "../lib/feedEvents";
 import { getPollView } from "../lib/pollViews";
 import { ensureProfile } from "../lib/profiles";
@@ -45,11 +45,8 @@ router.post("/polls", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const nearest = await findNearestHub(body.data.latitude, body.data.longitude);
-  if (!isInsideHub(nearest)) {
-    res.status(403).json(geofenceErrorPayload(nearest));
-    return;
-  }
+  const nearest = await getCommunityHub();
+  if (!nearest) { res.status(503).json({ error: "The community is not configured yet." }); return; }
 
   const userId = authenticatedUserId(res);
   const profile = await ensureProfile(userId);
@@ -119,11 +116,8 @@ router.put("/polls/:pollId/vote", requireAuth, async (req, res): Promise<void> =
     return;
   }
 
-  const nearest = await findNearestHub(body.data.latitude, body.data.longitude);
-  if (!isInsideHub(nearest, poll.campusId)) {
-    res.status(403).json(geofenceErrorPayload(nearest));
-    return;
-  }
+  const nearest = await getCommunityHub();
+  if (!nearest) { res.status(503).json({ error: "The community is not configured yet." }); return; }
 
   const [option] = await db
     .select({ id: pollOptionsTable.id })
@@ -202,11 +196,8 @@ router.post("/polls/:pollId/report", requireAuth, async (req, res): Promise<void
     return;
   }
 
-  const nearest = await findNearestHub(body.data.latitude, body.data.longitude);
-  if (!isInsideHub(nearest, poll.campusId)) {
-    res.status(403).json(geofenceErrorPayload(nearest));
-    return;
-  }
+  const nearest = await getCommunityHub();
+  if (!nearest) { res.status(503).json({ error: "The community is not configured yet." }); return; }
 
   const userId = authenticatedUserId(res);
   await ensureProfile(userId);

@@ -103,14 +103,14 @@ paths:
       parameters:
         - in: query
           name: latitude
-          required: true
+          required: false
           schema:
             type: number
             minimum: -90
             maximum: 90
         - in: query
           name: longitude
-          required: true
+          required: false
           schema:
             type: number
             minimum: -180
@@ -143,14 +143,14 @@ paths:
       parameters:
         - in: query
           name: latitude
-          required: true
+          required: false
           schema:
             type: number
             minimum: -90
             maximum: 90
         - in: query
           name: longitude
-          required: true
+          required: false
           schema:
             type: number
             minimum: -180
@@ -839,7 +839,7 @@ components:
         hub:
           $ref: "#/components/schemas/CampusHub"
         distanceKm:
-          type: number
+          type: ["number", "null"]
         posts:
           type: array
           items:
@@ -891,7 +891,7 @@ components:
           type: number
           minimum: -180
           maximum: 180
-      required: [content, latitude, longitude]
+      required: [content]
     PostVoteInput:
       type: object
       properties:
@@ -906,7 +906,7 @@ components:
           type: number
           minimum: -180
           maximum: 180
-      required: [value, latitude, longitude]
+      required: [value]
     PostVoteResponse:
       type: object
       properties:
@@ -932,7 +932,7 @@ components:
           type: number
           minimum: -180
           maximum: 180
-      required: [latitude, longitude]
+      required: []
     ReportResponse:
       type: object
       properties:
@@ -1008,7 +1008,7 @@ components:
           type: number
           minimum: -180
           maximum: 180
-      required: [question, options, latitude, longitude]
+      required: [question, options]
     PollVoteInput:
       type: object
       properties:
@@ -1023,7 +1023,7 @@ components:
           type: number
           minimum: -180
           maximum: 180
-      required: [optionId, latitude, longitude]
+      required: [optionId]
     RadarPresenceInput:
       type: object
       properties:

@@ -93,7 +93,8 @@ export interface Poll {
 
 export interface FeedResponse {
   hub: CampusHub;
-  distanceKm: number;
+  /** @nullable */
+  distanceKm: number | null;
   posts: Post[];
   polls: Poll[];
   updatedAt: string;
@@ -109,12 +110,12 @@ export interface PostInput {
      * @minimum -90
      * @maximum 90
      */
-  latitude: number;
+  latitude?: number;
   /**
      * @minimum -180
      * @maximum 180
      */
-  longitude: number;
+  longitude?: number;
 }
 
 export type PostVoteInputValue = typeof PostVoteInputValue[keyof typeof PostVoteInputValue];
@@ -131,12 +132,12 @@ export interface PostVoteInput {
      * @minimum -90
      * @maximum 90
      */
-  latitude: number;
+  latitude?: number;
   /**
      * @minimum -180
      * @maximum 180
      */
-  longitude: number;
+  longitude?: number;
 }
 
 /**
@@ -164,12 +165,12 @@ export interface ReportInput {
      * @minimum -90
      * @maximum 90
      */
-  latitude: number;
+  latitude?: number;
   /**
      * @minimum -180
      * @maximum 180
      */
-  longitude: number;
+  longitude?: number;
 }
 
 export interface ReportResponse {
@@ -195,12 +196,12 @@ export interface PollInput {
      * @minimum -90
      * @maximum 90
      */
-  latitude: number;
+  latitude?: number;
   /**
      * @minimum -180
      * @maximum 180
      */
-  longitude: number;
+  longitude?: number;
 }
 
 export interface PollVoteInput {
@@ -210,12 +211,12 @@ export interface PollVoteInput {
      * @minimum -90
      * @maximum 90
      */
-  latitude: number;
+  latitude?: number;
   /**
      * @minimum -180
      * @maximum 180
      */
-  longitude: number;
+  longitude?: number;
 }
 
 export interface RadarPresenceInput {
@@ -438,12 +439,12 @@ export type GetFeedParams = {
  * @minimum -90
  * @maximum 90
  */
-latitude: number;
+latitude?: number;
 /**
  * @minimum -180
  * @maximum 180
  */
-longitude: number;
+longitude?: number;
 sort?: GetFeedSort;
 };
 
@@ -460,12 +461,12 @@ export type SubscribeToFeedParams = {
  * @minimum -90
  * @maximum 90
  */
-latitude: number;
+latitude?: number;
 /**
  * @minimum -180
  * @maximum 180
  */
-longitude: number;
+longitude?: number;
 };
 
 export type GetNearbyRadarBlipsParams = {

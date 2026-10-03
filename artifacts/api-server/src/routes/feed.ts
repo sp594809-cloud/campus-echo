@@ -17,11 +17,7 @@ import {
   profilesTable,
 } from "@workspace/db";
 import { authenticatedUserId, requireAuth } from "../lib/auth";
-import {
-  findNearestHub,
-  geofenceErrorPayload,
-  isInsideHub,
-} from "../lib/geofencing";
+import { getCommunityHub } from "../lib/community";
 import { subscribeToCampusFeed } from "../lib/feedEvents";
 
 const router: IRouter = Router();
@@ -34,11 +30,8 @@ router.get("/feed", requireAuth, async (req, res): Promise<void> => {
     return;
   }
   const userId = authenticatedUserId(res);
-  const nearest = await findNearestHub(params.data.latitude, params.data.longitude);
-  if (!isInsideHub(nearest)) {
-    res.status(403).json(geofenceErrorPayload(nearest));
-    return;
-  }
+  const nearest = await getCommunityHub();
+  if (!nearest) { res.status(503).json({ error: "The community is not configured yet." }); return; }
 
   const now = new Date();
   const [postRows, pollRows] = await Promise.all([
@@ -209,7 +202,7 @@ router.get("/feed", requireAuth, async (req, res): Promise<void> => {
   res.json(
     GetFeedResponse.parse({
       hub: nearest.hub,
-      distanceKm: nearest.distanceKm,
+      distanceKm: null,
       posts,
       polls,
       updatedAt: new Date(),
@@ -223,11 +216,8 @@ router.get("/feed/events", requireAuth, async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const nearest = await findNearestHub(params.data.latitude, params.data.longitude);
-  if (!isInsideHub(nearest)) {
-    res.status(403).json(geofenceErrorPayload(nearest));
-    return;
-  }
+  const nearest = await getCommunityHub();
+  if (!nearest) { res.status(503).json({ error: "The community is not configured yet." }); return; }
 
   const unsubscribe = subscribeToCampusFeed(nearest.hub.id, res);
   res.on("close", unsubscribe);

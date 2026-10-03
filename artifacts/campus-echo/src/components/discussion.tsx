@@ -2,9 +2,9 @@ import { useAuth } from '@/lib/auth';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-type Coordinates = { latitude: number; longitude: number };
+type Coordinates = { latitude?: number; longitude?: number };
 type Message = { id: number; alias: string; content: string; createdAt: string; fromMe: boolean };
-export function Discussion({ coords, postId }: { coords: Coordinates; postId?: number }) {
+export function Discussion({ coords, postId }: { coords?: Coordinates; postId?: number }) {
   const { getToken, userId } = useAuth();
   const cache = useQueryClient();
   const [text, setText] = useState('');
@@ -12,7 +12,7 @@ export function Discussion({ coords, postId }: { coords: Coordinates; postId?: n
   const [notice, setNotice] = useState('');
   const bottom = useRef<HTMLDivElement>(null);
   const endpoint = postId ? `/api/posts/${postId}/replies` : '/api/chat/public';
-  const key = ['discussion', userId, postId ?? 'public', coords.latitude, coords.longitude];
+  const key = ['discussion', userId, postId ?? 'public'];
   const request = useCallback(async <T,>(url: string, body?: unknown): Promise<T> => {
     const token = await getToken();
     const response = await fetch(url, { credentials: 'include', method: body === undefined ? 'GET' : 'POST', headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
@@ -20,19 +20,13 @@ export function Discussion({ coords, postId }: { coords: Coordinates; postId?: n
     if (!response.ok) throw new Error(data.error ?? 'Unable to connect. Please try again.');
     return data;
   }, [getToken]);
-  const query = useQuery({ queryKey: key, queryFn: () => request<{ messages: Message[] }>(`${endpoint}?${new URLSearchParams({ latitude: String(coords.latitude), longitude: String(coords.longitude) })}`), refetchInterval: 5000 });
-  useEffect(() => {
-    const stream = new EventSource(`/api/feed/events?${new URLSearchParams({ latitude: String(coords.latitude), longitude: String(coords.longitude) })}`, { withCredentials: true });
-    const refresh = () => { void cache.invalidateQueries({ queryKey: ['discussion', userId] }); };
-    stream.addEventListener('update', refresh);
-    return () => stream.close();
-  }, [cache, userId, coords.latitude, coords.longitude]);
+  const query = useQuery({ queryKey: key, queryFn: () => request<{ messages: Message[] }>(endpoint), refetchInterval: 5000 });
   const send = useMutation({ mutationFn: () => request<Message>(endpoint, { ...coords, content: text.trim() }), onSuccess: () => { setText(''); setError(''); void cache.invalidateQueries({ queryKey: key }); }, onError: e => setError(e.message) });
   const moderate = useMutation({ mutationFn: ({ id, action, reason }: { id: number; action: 'report' | 'block'; reason?: string }) => request(`/api/discussions/${id}/${action}`, { ...coords, reason }), onSuccess: () => { setError(''); setNotice('Done. Thank you for keeping campus safe.'); void cache.invalidateQueries({ queryKey: ['discussion', userId] }); }, onError: e => setError(e.message) });
   useEffect(() => { if (!postId) bottom.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, [query.data?.messages.length, postId]);
-  return <section className="rounded-2xl border border-white/10 bg-[#121117] p-4" aria-label={postId ? 'Post replies' : 'Public campus chat'}>
-    <h2 className="mb-2 font-semibold text-white">{postId ? 'Replies' : 'Campus chat'}</h2>
-    <p className="mb-4 text-xs text-white/45">{postId ? 'Join the conversation using your campus alias.' : 'Everyone nearby can join. Text only. Messages disappear after 24 hours.'}</p>
+  return <section className="rounded-2xl border border-white/10 bg-[#121117] p-4" aria-label={postId ? 'Post replies' : 'Public anonymous chat'}>
+    <h2 className="mb-2 font-semibold text-white">{postId ? 'Replies' : 'Everyone chat'}</h2>
+    <p className="mb-4 text-xs text-white/45">{postId ? 'Join the conversation using your campus alias.' : 'Join from anywhere. No location permission needed. Text only. Messages disappear after 24 hours.'}</p>
     <div className="max-h-[420px] space-y-3 overflow-y-auto" aria-live="polite" role="log">
       {query.isLoading ? <p className="text-white/50">Loading conversation…</p> : query.isError ? <button className="text-rose-200 underline" onClick={() => void query.refetch()}>Could not load messages. Retry</button> : !query.data?.messages.length ? <p className="py-6 text-sm text-white/45">No messages yet. Say hello.</p> : query.data.messages.map(m => <article key={m.id} className={`rounded-xl p-3 ${m.fromMe ? 'bg-primary/15' : 'bg-white/5'}`}>
         <div className="flex justify-between gap-2 text-[11px] text-white/45"><span>{m.alias}{m.fromMe ? ' · you' : ''}</span><time dateTime={m.createdAt}>{new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time></div>

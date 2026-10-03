@@ -29,7 +29,7 @@ const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 20_000, retry: 1, refetchOnWindowFocus: true } },
 });
-type Coordinates = { latitude: number; longitude: number };
+type Coordinates = { latitude?: number; longitude?: number };
 type ComposerMode = 'post' | 'poll';
 type FeedItem = ({ kind: 'post' } & Post) | ({ kind: 'poll' } & Poll);
 
@@ -61,12 +61,12 @@ function Landing() {
         <h1 className="max-w-3xl font-display text-[clamp(3.25rem,8vw,7.5rem)] font-semibold leading-[.91] tracking-[-.075em] text-white">
           The good stuff<br /><span className="text-primary">happens</span> nearby.
         </h1>
-        <p className="mt-7 max-w-lg text-base leading-7 text-white/55 md:text-lg md:leading-8">A little corner of campus that belongs to everyone. Share a thought, ask a question, take a pulse — all anonymous, all within a two-kilometre radius.</p>
+        <p className="mt-7 max-w-lg text-base leading-7 text-white/55 md:text-lg md:leading-8">A little corner of campus that belongs to everyone. Share a thought, ask a question, take a pulse — all anonymous, wherever you are.</p>
         <div className="mt-9 flex flex-wrap items-center gap-4">
           <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/sign-up`} data-testid="button-join-campus" className="group rounded-full bg-primary px-7 py-4 text-sm font-bold text-[#100817] transition hover:-translate-y-1 hover:shadow-[0_14px_40px_rgba(176,111,255,.25)]">Find your people <ArrowUpRight className="ml-3 inline h-4 w-4 transition group-hover:translate-x-1 group-hover:-translate-y-1" /></a>
           <span className="flex items-center gap-2 text-xs text-white/40"><ShieldCheck className="h-4 w-4 text-accent" />No names. No follower counts.</span>
         </div>
-        <div className="mt-14 flex items-center gap-3 border-t border-white/[.09] pt-5 text-xs text-white/40"><MapPin className="h-4 w-4 text-accent" />Only people close enough to actually be there.</div>
+        <div className="mt-14 flex items-center gap-3 border-t border-white/[.09] pt-5 text-xs text-white/40"><MapPin className="h-4 w-4 text-accent" />Post and chat from anywhere. Location is only for Radar.</div>
       </div>
       <div className="relative mx-auto flex min-h-[420px] w-full max-w-[520px] items-center justify-center md:min-h-[520px]">
         <div className="absolute h-[360px] w-[360px] rounded-full border border-primary/10 md:h-[470px] md:w-[470px]" />
@@ -99,11 +99,11 @@ function Landing() {
     </section>
     <section className="mx-auto grid max-w-7xl gap-10 px-5 py-16 md:grid-cols-[1.1fr_.9fr] md:px-10 md:py-24">
       <div><p className="font-mono text-[10px] uppercase tracking-[.2em] text-primary">A smaller radius, a better signal</p><h2 className="mt-4 max-w-xl font-display text-4xl font-semibold leading-[1.02] tracking-[-.06em] text-white md:text-6xl">The campus is the whole point.</h2></div>
-      <div className="space-y-5 text-sm leading-7 text-white/50 md:pt-5"><p>No global audience to perform for. No algorithm guessing what you want. Just the people who are actually around the corner — figuring out dinner, sharing a quiet win, asking if the lecture is worth it.</p><p>Location is checked privately to find the nearest campus. Your coordinates never appear in the feed.</p></div>
+      <div className="space-y-5 text-sm leading-7 text-white/50 md:pt-5"><p>Join one shared conversation from campus, home, or anywhere else. Share a thought, ask a question, or reply using your anonymous alias.</p><p>The feed and public chat do not need GPS. Enable location only when you want to use nearby Radar.</p></div>
     </section>
     <section className="mx-auto max-w-7xl px-5 pb-20 md:px-10">
       <div className="grid overflow-hidden rounded-3xl border border-white/[.09] bg-[#121117] md:grid-cols-3">
-        {[{ n: '01', title: 'Show up nearby', text: 'Share your location once. We only use it to check whether you are within two kilometres of a campus hub.' }, { n: '02', title: 'Say what you mean', text: 'Drop a short note or run a poll. Your campus alias keeps it human without making it personal.' }, { n: '03', title: 'Let it pass', text: 'Votes move the conversation. Posts disappear after a day. Nothing here is meant to live forever.' }].map((item, i) => <div key={item.n} className={`p-6 md:p-8 ${i ? 'border-t border-white/[.08] md:border-l md:border-t-0' : ''}`}><span className="font-mono text-xs text-accent">{item.n} / 03</span><h3 className="mt-8 font-display text-xl font-semibold text-white">{item.title}</h3><p className="mt-3 text-sm leading-6 text-white/45">{item.text}</p></div>)}
+        {[{ n: '01', title: 'Join from anywhere', text: 'Sign in and start talking from anywhere. Location permission is only needed for nearby Radar.' }, { n: '02', title: 'Say what you mean', text: 'Drop a short note or run a poll. Your campus alias keeps it human without making it personal.' }, { n: '03', title: 'Let it pass', text: 'Votes move the conversation. Posts disappear after a day. Nothing here is meant to live forever.' }].map((item, i) => <div key={item.n} className={`p-6 md:p-8 ${i ? 'border-t border-white/[.08] md:border-l md:border-t-0' : ''}`}><span className="font-mono text-xs text-accent">{item.n} / 03</span><h3 className="mt-8 font-display text-xl font-semibold text-white">{item.title}</h3><p className="mt-3 text-sm leading-6 text-white/45">{item.text}</p></div>)}
       </div>
     </section>
     <section className="mx-auto max-w-7xl px-5 pb-24 md:px-10">
@@ -156,58 +156,19 @@ function AuthScreen({ mode }: { mode: 'sign-in' | 'sign-up' }) {
 }
 
 function FeedPage() {
-  const [coords, setCoords] = useState<Coordinates | null>(null);
-  const [locationState, setLocationState] = useState<'idle' | 'loading' | 'denied' | 'error'>('idle');
+  const coords: Coordinates = {};
   const [sort, setSort] = useState<'recent' | 'popular'>('recent');
   const [composer, setComposer] = useState<ComposerMode | null>(null);
   const [toast, setToast] = useState('');
   const [toastError, setToastError] = useState(false);
   const cache = useQueryClient();
-  const hubs = useListHubs({ query: { queryKey: getListHubsQueryKey(), enabled: true } });
   const profile = useGetMyProfile({ query: { queryKey: getGetMyProfileQueryKey() } });
-  const nearestParams = coords ?? { latitude: 0, longitude: 0 };
-  const nearest = useGetNearestHub(nearestParams, { query: { queryKey: getGetNearestHubQueryKey(nearestParams), enabled: !!coords } });
-  const isNearby = !!coords && !!nearest.data?.withinRadius && !!nearest.data.hub;
-  const feedParams = { ...(coords ?? { latitude: 0, longitude: 0 }), sort };
-  const feed = useGetFeed(feedParams, { query: { queryKey: getGetFeedQueryKey(feedParams), enabled: isNearby, refetchInterval: 8000 } });
+  const feedParams = { sort };
+  const feed = useGetFeed(feedParams, { query: { queryKey: getGetFeedQueryKey(feedParams), refetchInterval: 8000 } });
+  const isNearby = !!feed.data;
   const refreshFeed = useCallback(() => {
-    if (coords) {
-      void cache.invalidateQueries({
-        queryKey: getGetFeedQueryKey({ ...coords, sort }),
-      });
-    }
-  }, [cache, coords, sort]);
-
-  const locationWatch = useRef<number | null>(null);
-  const locate = useCallback(() => {
-    if (!navigator.geolocation) {
-      setCoords(null);
-      setLocationState('error');
-      return;
-    }
-    if (locationWatch.current !== null) {
-      navigator.geolocation.clearWatch(locationWatch.current);
-    }
-    setLocationState('loading');
-    locationWatch.current = navigator.geolocation.watchPosition(
-      (position) => {
-        setCoords({ latitude: position.coords.latitude, longitude: position.coords.longitude });
-        setLocationState('idle');
-      },
-      (error) => {
-        setCoords(null);
-        setLocationState(error.code === error.PERMISSION_DENIED ? 'denied' : 'error');
-      },
-      { enableHighAccuracy: true, timeout: 25_000, maximumAge: 0 },
-    );
-  }, []);
-  useEffect(() => {
-    return () => {
-      if (locationWatch.current !== null) {
-        navigator.geolocation?.clearWatch(locationWatch.current);
-      }
-    };
-  }, [locate]);
+    void cache.invalidateQueries({ queryKey: getGetFeedQueryKey({ sort }) });
+  }, [cache, sort]);
   useEffect(() => { if (!toast) return; const timer = window.setTimeout(() => setToast(''), 2800); return () => window.clearTimeout(timer); }, [toast]);
 
   const onMutationSuccess = () => {
@@ -229,11 +190,11 @@ function FeedPage() {
 
   const submitPost = (content: string) => {
     if (!coords) return;
-    createPost.mutate({ data: { content, latitude: coords.latitude, longitude: coords.longitude } });
+    createPost.mutate({ data: { content, ...coords } });
   };
   const submitPoll = (question: string, options: string[]) => {
     if (!coords) return;
-    createPoll.mutate({ data: { question, options, latitude: coords.latitude, longitude: coords.longitude } });
+    createPoll.mutate({ data: { question, options, ...coords } });
   };
   const cards = useMemo<FeedItem[]>(() => {
     if (!feed.data) return [];
@@ -253,28 +214,22 @@ function FeedPage() {
         <div className="flex items-center gap-3">
           <a href={`${basePath}/radar`} data-testid="link-open-radar" className="inline-flex items-center gap-2 rounded-full border border-accent/20 bg-accent/[.06] px-3 py-2 text-xs font-semibold text-accent transition hover:bg-accent/[.12]"><Radio className="h-3.5 w-3.5" /><span>Radar</span></a>
           {profile.data && <div className="hidden items-center gap-2 rounded-full border border-white/[.08] bg-white/[.03] px-3 py-2 sm:flex" data-testid="profile-alias"><span className="h-2 w-2 rounded-full bg-accent" /><span className="text-xs text-white/70">{profile.data.alias}</span>{profile.data.studentVerified && <ShieldCheck className="h-3.5 w-3.5 text-accent" />}</div>}
-          <div className="hidden items-center gap-2 text-[10px] font-mono uppercase tracking-[.13em] text-white/40 sm:flex"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />live nearby</div>
+          <div className="hidden items-center gap-2 text-[10px] font-mono uppercase tracking-[.13em] text-white/40 sm:flex"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />live conversation</div>
         </div>
       </div>
     </header>
     <div className="mx-auto grid max-w-6xl gap-7 px-4 py-6 md:grid-cols-[minmax(0,1fr)_280px] md:px-8 md:py-10">
       <section className="min-w-0">
         <div className="mb-6 flex items-end justify-between gap-4">
-          <div><p className="font-mono text-[10px] uppercase tracking-[.2em] text-accent">the campus frequency</p><h1 className="mt-2 font-display text-4xl font-semibold tracking-[-.07em] text-white md:text-5xl">Nearby now<span className="text-primary">.</span></h1></div>
+          <div><p className="font-mono text-[10px] uppercase tracking-[.2em] text-accent">the campus frequency</p><h1 className="mt-2 font-display text-4xl font-semibold tracking-[-.07em] text-white md:text-5xl">Everyone, here<span className="text-primary">.</span></h1></div>
           <button onClick={refreshFeed} data-testid="button-refresh-feed" className="mb-1 grid h-10 w-10 place-items-center rounded-full border border-white/10 text-white/55 transition hover:border-accent/50 hover:text-accent"><RefreshCw className={`h-4 w-4 ${feed.isFetching ? 'animate-spin' : ''}`} /></button>
         </div>
-        {locationState === 'denied' ? <LocationPanel kind="denied" retry={locate} /> :
-         locationState === 'error' ? <LocationPanel kind="error" retry={locate} /> :
-         locationState === 'loading' || nearest.isLoading ? <LocationLoading /> :
-         nearest.isError ? <LocationPanel kind="error" retry={locate} /> :
-         !coords ? <LocationPanel kind="idle" retry={locate} /> :
-         !nearest.data?.withinRadius || !nearest.data.hub ? <OutsideRadius hubList={hubs.data} retry={locate} /> :
-         feed.isError ? <FeedError retry={refreshFeed} /> :
+        {         feed.isError ? <FeedError retry={refreshFeed} /> :
          feed.isLoading ? <FeedSkeleton /> :
          <div>
            <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent/15 bg-accent/[.04] px-4 py-3" data-testid="status-nearby">
-             <div className="flex items-center gap-3"><div className="grid h-9 w-9 place-items-center rounded-xl bg-accent/10 text-accent"><MapPin className="h-4 w-4" /></div><div><p className="text-sm font-semibold text-white">{feed.data?.hub.name ?? nearest.data.hub.name}</p><p className="text-xs text-white/40">Your campus, around you</p></div></div>
-             <span className="rounded-full border border-accent/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[.12em] text-accent">within 2 km</span>
+             <div className="flex items-center gap-3"><div className="grid h-9 w-9 place-items-center rounded-xl bg-accent/10 text-accent"><MapPin className="h-4 w-4" /></div><div><p className="text-sm font-semibold text-white">{feed.data?.hub.name ?? 'Campus Echo'}</p><p className="text-xs text-white/40">A shared anonymous community</p></div></div>
+             <span className="rounded-full border border-accent/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[.12em] text-accent">from anywhere</span>
            </div>
            <div className="mb-4 flex gap-2">
              <button onClick={() => setSort('recent')} data-testid="button-sort-recent" className={`rounded-full px-4 py-2 text-xs font-semibold transition ${sort === 'recent' ? 'bg-primary text-[#12091c]' : 'border border-white/10 text-white/50 hover:text-white'}`}>Most recent</button>
@@ -282,8 +237,8 @@ function FeedPage() {
            </div>
            <AnimatePresence mode="popLayout">
              {cards.length ? <div className="space-y-4">{cards.map((item) => item.kind === 'post'
-               ? <PostCard key={`post-${item.id}`} post={item} coords={coords!} onVote={(value) => { if (coords) votePost.mutate({ postId: item.id, data: { value, latitude: coords.latitude, longitude: coords.longitude } }); }} onReport={() => { if (coords && window.confirm('Report this post to campus moderation?')) reportPost.mutate({ postId: item.id, data: { latitude: coords.latitude, longitude: coords.longitude } }); }} busy={votePost.isPending || reportPost.isPending} />
-               : <PollCard key={`poll-${item.id}`} poll={item} onVote={(optionId) => { if (coords) votePoll.mutate({ pollId: item.id, data: { optionId, latitude: coords.latitude, longitude: coords.longitude } }); }} onReport={() => { if (coords && window.confirm('Report this poll to campus moderation?')) reportPoll.mutate({ pollId: item.id, data: { latitude: coords.latitude, longitude: coords.longitude } }); }} busy={votePoll.isPending || reportPoll.isPending} />)}</div>
+               ? <PostCard key={`post-${item.id}`} post={item} coords={coords} onVote={(value) => { if (coords) votePost.mutate({ postId: item.id, data: { value, ...coords } }); }} onReport={() => { if (coords && window.confirm('Report this post to campus moderation?')) reportPost.mutate({ postId: item.id, data: { ...coords } }); }} busy={votePost.isPending || reportPost.isPending} />
+               : <PollCard key={`poll-${item.id}`} poll={item} onVote={(optionId) => { if (coords) votePoll.mutate({ pollId: item.id, data: { optionId, ...coords } }); }} onReport={() => { if (coords && window.confirm('Report this poll to campus moderation?')) reportPoll.mutate({ pollId: item.id, data: { ...coords } }); }} busy={votePoll.isPending || reportPoll.isPending} />)}</div>
              : <EmptyFeed onCreate={() => setComposer('post')} />}
            </AnimatePresence>
          </div>}
@@ -291,8 +246,8 @@ function FeedPage() {
       <aside className="hidden space-y-4 md:block">
         <div className="rounded-2xl border border-white/[.09] bg-[#121117] p-5">
           <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[.16em] text-primary"><Radio className="h-3.5 w-3.5" /> signal rules</div>
-          <p className="mt-4 font-display text-xl font-semibold leading-6 text-white">Local is the feature.</p>
-          <p className="mt-2 text-xs leading-5 text-white/45">People within 2 km of a campus hub can see or post here. Your exact location never appears in your feed.</p>
+          <p className="mt-4 font-display text-xl font-semibold leading-6 text-white">Your voice belongs here.</p>
+          <p className="mt-2 text-xs leading-5 text-white/45">People from anywhere of a campus hub can see or post here. Your exact location never appears in your feed.</p>
           <div className="mt-5 flex items-center gap-2 border-t border-white/[.07] pt-4 text-xs text-white/40"><Flame className="h-4 w-4 text-accent" /> Every post fades after 24 hours</div>
         </div>
         <div className="rounded-2xl border border-white/[.09] bg-[#121117] p-5">
@@ -303,7 +258,7 @@ function FeedPage() {
         <div className="flex items-center gap-2 px-1 text-[10px] font-mono uppercase tracking-[.13em] text-white/25"><CircleHelp className="h-3.5 w-3.5" /> A temporary corner of campus life</div>
       </aside>
     </div>
-    {isNearby && <button onClick={() => setComposer('post')} data-testid="button-open-composer" className="fixed bottom-5 right-5 z-40 flex h-14 items-center gap-2 rounded-full bg-primary px-5 text-sm font-bold text-[#110718] shadow-[0_10px_36px_rgba(181,112,255,.32)] transition hover:-translate-y-1 md:bottom-8 md:right-[calc((100vw-1100px)/2)]"><Plus className="h-5 w-5" /><span className="hidden sm:inline">Leave a signal</span><span className="sm:hidden">Post</span></button>}
+    {isNearby && <button onClick={() => setComposer('post')} data-testid="button-open-composer" className="fixed bottom-24 right-5 z-40 flex h-14 items-center gap-2 rounded-full bg-primary px-5 text-sm font-bold text-[#110718] shadow-[0_10px_36px_rgba(181,112,255,.32)] transition hover:-translate-y-1 md:bottom-24 md:right-[calc((100vw-1100px)/2)]"><Plus className="h-5 w-5" /><span className="hidden sm:inline">Leave a signal</span><span className="sm:hidden">Post</span></button>}
     <Composer open={!!composer} mode={composer ?? 'post'} close={() => setComposer(null)} onMode={setComposer} onPost={submitPost} onPoll={submitPoll} pending={createPost.isPending || createPoll.isPending} />
     <AnimatePresence>{toast && <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }} className={`fixed bottom-24 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full border px-5 py-3 text-sm text-white shadow-2xl ${toastError ? 'border-rose-300/25 bg-[#24171b]' : 'border-accent/20 bg-[#191821]'}`} data-testid="status-toast">{toastError ? <X className="h-4 w-4 text-rose-300" /> : <Check className="h-4 w-4 text-accent" />}{toast}</motion.div>}</AnimatePresence>
   </main>;
@@ -327,7 +282,7 @@ function LocationLoading() {
 function OutsideRadius({ hubList, retry }: { hubList?: CampusHub[]; retry: () => void }) {
   return <div className="rounded-3xl border border-white/[.09] bg-[#121117] px-6 py-10 md:px-12 md:py-14" data-testid="status-outside-radius">
     <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-accent/20 bg-accent/[.07] text-accent"><MapPin className="h-6 w-6" /></div>
-    <div className="mt-6 text-center"><p className="font-mono text-[10px] uppercase tracking-[.18em] text-accent">you are off the frequency</p><h2 className="mt-2 font-display text-2xl font-semibold tracking-[-.05em] text-white">Not quite on campus.</h2><p className="mx-auto mt-3 max-w-md text-sm leading-6 text-white/45">Campus Echo opens within 2 km of a campus hub. Your feed will be right here when you get closer.</p></div>
+    <div className="mt-6 text-center"><p className="font-mono text-[10px] uppercase tracking-[.18em] text-accent">you are off the frequency</p><h2 className="mt-2 font-display text-2xl font-semibold tracking-[-.05em] text-white">Not quite on campus.</h2><p className="mx-auto mt-3 max-w-md text-sm leading-6 text-white/45">Campus Echo opens from anywhere of a campus hub. Your feed will be right here when you get closer.</p></div>
     {hubList?.length ? <div className="mx-auto mt-7 max-w-sm border-t border-white/[.08] pt-5"><p className="mb-3 text-xs text-white/35">Campus hubs on the network</p><div className="space-y-2">{hubList.slice(0, 3).map((hub) => <div key={hub.id} className="flex items-center justify-between rounded-xl bg-white/[.025] px-3 py-2.5" data-testid={`hub-nearby-${hub.id}`}><span className="text-sm text-white/70">{hub.name}</span><span className="text-xs text-white/35">{hub.city}</span></div>)}</div></div> : null}
     <div className="text-center"><button onClick={retry} className="mt-7 rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white/70 transition hover:border-accent/40 hover:text-accent" data-testid="button-check-again"><RefreshCw className="mr-2 inline h-4 w-4" />Check again</button></div>
   </div>;

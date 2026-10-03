@@ -84,8 +84,8 @@ export const getFeedQueryLongitudeMax = 180;
 export const getFeedQuerySortDefault = `recent`;
 
 export const GetFeedQueryParams = zod.object({
-  "latitude": zod.coerce.number().min(getFeedQueryLatitudeMin).max(getFeedQueryLatitudeMax),
-  "longitude": zod.coerce.number().min(getFeedQueryLongitudeMin).max(getFeedQueryLongitudeMax),
+  "latitude": zod.coerce.number().min(getFeedQueryLatitudeMin).max(getFeedQueryLatitudeMax).optional(),
+  "longitude": zod.coerce.number().min(getFeedQueryLongitudeMin).max(getFeedQueryLongitudeMax).optional(),
   "sort": zod.enum(['recent', 'popular']).default(getFeedQuerySortDefault)
 })
 
@@ -110,7 +110,7 @@ export const GetFeedResponse = zod.object({
   "longitude": zod.number(),
   "radiusKm": zod.number()
 }),
-  "distanceKm": zod.number(),
+  "distanceKm": zod.number().nullable(),
   "posts": zod.array(zod.object({
   "id": zod.number().int(),
   "alias": zod.string(),
@@ -153,8 +153,8 @@ export const subscribeToFeedQueryLongitudeMax = 180;
 
 
 export const SubscribeToFeedQueryParams = zod.object({
-  "latitude": zod.coerce.number().min(subscribeToFeedQueryLatitudeMin).max(subscribeToFeedQueryLatitudeMax),
-  "longitude": zod.coerce.number().min(subscribeToFeedQueryLongitudeMin).max(subscribeToFeedQueryLongitudeMax)
+  "latitude": zod.coerce.number().min(subscribeToFeedQueryLatitudeMin).max(subscribeToFeedQueryLatitudeMax).optional(),
+  "longitude": zod.coerce.number().min(subscribeToFeedQueryLongitudeMin).max(subscribeToFeedQueryLongitudeMax).optional()
 })
 
 export const SubscribeToFeedResponse = zod.unknown()
@@ -175,8 +175,8 @@ export const createPostBodyLongitudeMax = 180;
 
 export const CreatePostBody = zod.object({
   "content": zod.string().min(1).max(createPostBodyContentMax),
-  "latitude": zod.number().min(createPostBodyLatitudeMin).max(createPostBodyLatitudeMax),
-  "longitude": zod.number().min(createPostBodyLongitudeMin).max(createPostBodyLongitudeMax)
+  "latitude": zod.number().min(createPostBodyLatitudeMin).max(createPostBodyLatitudeMax).optional(),
+  "longitude": zod.number().min(createPostBodyLongitudeMin).max(createPostBodyLongitudeMax).optional()
 })
 
 export const createPostResponseContentMax = 280;
@@ -215,8 +215,8 @@ export const voteOnPostBodyLongitudeMax = 180;
 
 export const VoteOnPostBody = zod.object({
   "value": zod.union([zod.literal(-1),zod.literal(1)]),
-  "latitude": zod.number().min(voteOnPostBodyLatitudeMin).max(voteOnPostBodyLatitudeMax),
-  "longitude": zod.number().min(voteOnPostBodyLongitudeMin).max(voteOnPostBodyLongitudeMax)
+  "latitude": zod.number().min(voteOnPostBodyLatitudeMin).max(voteOnPostBodyLatitudeMax).optional(),
+  "longitude": zod.number().min(voteOnPostBodyLongitudeMin).max(voteOnPostBodyLongitudeMax).optional()
 })
 
 export const VoteOnPostResponse = zod.object({
@@ -248,8 +248,8 @@ export const reportPostBodyLongitudeMax = 180;
 
 export const ReportPostBody = zod.object({
   "reason": zod.string().max(reportPostBodyReasonMax).optional(),
-  "latitude": zod.number().min(reportPostBodyLatitudeMin).max(reportPostBodyLatitudeMax),
-  "longitude": zod.number().min(reportPostBodyLongitudeMin).max(reportPostBodyLongitudeMax)
+  "latitude": zod.number().min(reportPostBodyLatitudeMin).max(reportPostBodyLatitudeMax).optional(),
+  "longitude": zod.number().min(reportPostBodyLongitudeMin).max(reportPostBodyLongitudeMax).optional()
 })
 
 export const ReportPostResponse = zod.object({
@@ -280,8 +280,8 @@ export const createPollBodyLongitudeMax = 180;
 export const CreatePollBody = zod.object({
   "question": zod.string().min(1).max(createPollBodyQuestionMax),
   "options": zod.array(zod.string().min(1).max(createPollBodyOptionsItemMax)).min(createPollBodyOptionsMin).max(createPollBodyOptionsMax),
-  "latitude": zod.number().min(createPollBodyLatitudeMin).max(createPollBodyLatitudeMax),
-  "longitude": zod.number().min(createPollBodyLongitudeMin).max(createPollBodyLongitudeMax)
+  "latitude": zod.number().min(createPollBodyLatitudeMin).max(createPollBodyLatitudeMax).optional(),
+  "longitude": zod.number().min(createPollBodyLongitudeMin).max(createPollBodyLongitudeMax).optional()
 })
 
 export const createPollResponseQuestionMax = 200;
@@ -332,8 +332,8 @@ export const voteOnPollBodyLongitudeMax = 180;
 
 export const VoteOnPollBody = zod.object({
   "optionId": zod.number().int().min(1),
-  "latitude": zod.number().min(voteOnPollBodyLatitudeMin).max(voteOnPollBodyLatitudeMax),
-  "longitude": zod.number().min(voteOnPollBodyLongitudeMin).max(voteOnPollBodyLongitudeMax)
+  "latitude": zod.number().min(voteOnPollBodyLatitudeMin).max(voteOnPollBodyLatitudeMax).optional(),
+  "longitude": zod.number().min(voteOnPollBodyLongitudeMin).max(voteOnPollBodyLongitudeMax).optional()
 })
 
 export const voteOnPollResponseQuestionMax = 200;
@@ -385,8 +385,8 @@ export const reportPollBodyLongitudeMax = 180;
 
 export const ReportPollBody = zod.object({
   "reason": zod.string().max(reportPollBodyReasonMax).optional(),
-  "latitude": zod.number().min(reportPollBodyLatitudeMin).max(reportPollBodyLatitudeMax),
-  "longitude": zod.number().min(reportPollBodyLongitudeMin).max(reportPollBodyLongitudeMax)
+  "latitude": zod.number().min(reportPollBodyLatitudeMin).max(reportPollBodyLatitudeMax).optional(),
+  "longitude": zod.number().min(reportPollBodyLongitudeMin).max(reportPollBodyLongitudeMax).optional()
 })
 
 export const ReportPollResponse = zod.object({

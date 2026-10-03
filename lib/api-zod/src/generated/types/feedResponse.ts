@@ -11,7 +11,8 @@ import type { Post } from './post';
 
 export interface FeedResponse {
   hub: CampusHub;
-  distanceKm: number;
+  /** @nullable */
+  distanceKm: number | null;
   posts: Post[];
   polls: Poll[];
   updatedAt: Date;

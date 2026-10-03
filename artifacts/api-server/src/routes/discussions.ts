@@ -3,19 +3,17 @@ import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod/v4';
 import { db, discussionsTable as messages, discussionReportsTable as reports, postsTable, profilesTable, radarBlocksTable } from '@workspace/db';
 import { requireAuth, authenticatedUserId } from '../lib/auth';
-import { findNearestHub, isInsideHub, geofenceErrorPayload } from '../lib/geofencing';
+import { getCommunityHub } from '../lib/community';
 import { ensureProfile } from '../lib/profiles';
 import { blockRadarUser } from '../lib/radarService';
 import { publishCampusFeedUpdate } from '../lib/feedEvents';
 
 const router: IRouter = Router();
 export const coordinatesSchema = z.object({ latitude: z.coerce.number().min(-90).max(90), longitude: z.coerce.number().min(-180).max(180) });
-export const discussionInput = coordinatesSchema.extend({ content: z.string().trim().min(1).max(1000) });
+export const discussionInput = z.object({ content: z.string().trim().min(1).max(1000) });
 async function scope(req: Request, res: Response, source: unknown) {
-  const coords = coordinatesSchema.safeParse(source);
-  if (!coords.success) { res.status(400).json({ error: 'Valid location is required.' }); return null; }
-  const nearest = await findNearestHub(coords.data.latitude, coords.data.longitude);
-  if (!isInsideHub(nearest)) { res.status(403).json(geofenceErrorPayload(nearest)); return null; }
+  const nearest = await getCommunityHub();
+  if (!nearest) { res.status(503).json({ error: 'The community is not configured yet.' }); return null; }
   const userId = authenticatedUserId(res);
   const rawId = req.params.postId;
   const postId = rawId === undefined ? null : Number(rawId);
