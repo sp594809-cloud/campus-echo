@@ -4,8 +4,8 @@ services:
     runtime: node
     plan: starter
     region: singapore
-    buildCommand: corepack enable && corepack prepare pnpm@11.25.0 --activate && pnpm install --frozen-lockfile && pnpm build
-    startCommand: pnpm start
+    buildCommand: npx --yes --package=pnpm@11.25.0 -c 'pnpm install --frozen-lockfile && pnpm build'
+    startCommand: node artifacts/api-server/dist/index.mjs
     healthCheckPath: /api/healthz
     envVars:
       - key: NODE_VERSION
