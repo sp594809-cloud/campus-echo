@@ -8,6 +8,8 @@ import pollsRouter from "./polls";
 import radarRouter from "./radar";
 
 import discussionsRouter from "./discussions";
+import adminRouter from "./admin";
+import pushRouter from "./push";
 
 const router: IRouter = Router();
 
@@ -19,5 +21,7 @@ router.use(postsRouter);
 router.use(pollsRouter);
 router.use(radarRouter);
 router.use(discussionsRouter);
+router.use(adminRouter);
+router.use(pushRouter);
 
 export default router;
