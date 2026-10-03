@@ -32,7 +32,7 @@ function readableError(error: unknown) {
 
 export default function RadarPage({ inboxOnly = false }: { inboxOnly?: boolean }) {
   const cache = useQueryClient();
-  const { userId } = useAuth();
+  const { userId, getToken } = useAuth();
   const [coords, setCoords] = useState<Coords | null>(null);
   const [visible, setVisible] = useState(false);
   const [geoState, setGeoState] = useState<'off' | 'locating' | 'denied' | 'error'>('off');
@@ -47,12 +47,13 @@ export default function RadarPage({ inboxOnly = false }: { inboxOnly?: boolean }
   const activeRef = useRef(false);
   const coordsRef = useRef<Coords | null>(null);
   const desiredVisibility = useRef(false);
+  const locationWatch = useRef<number | null>(null);
   const form = useForm<ChatForm>({ defaultValues: { text: '' } });
 
   const inbox = useGetRadarInbox({ query: { queryKey: getGetRadarInboxQueryKey(), refetchInterval: 15_000 } });
   const nearbyParams = coords ?? { latitude: 0, longitude: 0, accuracyMeters: 0 };
   const nearby = useGetNearbyRadarBlips(nearbyParams, {
-    query: { enabled: visible && !!coords && geoState === 'off', queryKey: getGetNearbyRadarBlipsQueryKey(nearbyParams), refetchInterval: 30_000 },
+    query: { enabled: visible && !!coords && geoState === 'off', queryKey: getGetNearbyRadarBlipsQueryKey(nearbyParams), refetchInterval: 5000 },
   });
   const messages = useListRadarChatMessages(activeChat ?? '', {
     query: { enabled: !!activeChat, queryKey: getListRadarChatMessagesQueryKey(activeChat ?? ''), refetchInterval: socketState === 'online' ? false : 8_000 },
@@ -63,11 +64,11 @@ export default function RadarPage({ inboxOnly = false }: { inboxOnly?: boolean }
     if (activeChat) void cache.invalidateQueries({ queryKey: getListRadarChatMessagesQueryKey(activeChat) });
   }, [activeChat, cache]);
   const updatePresence = useUpdateRadarPresence({ mutation: { onSuccess: () => {
-    if (!desiredVisibility.current) { void fetch("/api/radar/presence", { method: "DELETE", credentials: "include", keepalive: true }); return; }
+    if (!desiredVisibility.current) { void getToken().then(token => fetch("/api/radar/presence", { method: "DELETE", headers: token ? { Authorization: `Bearer ${token}` } : {}, keepalive: true })); return; }
     setVisible(true);
     setGeoState('off');
     void cache.invalidateQueries({ queryKey: getGetNearbyRadarBlipsQueryKey() });
-  }, onError: (e) => { setVisible(false); setNoticeError(true); setNotice(readableError(e)); } } });
+  }, onError: (e) => { setVisible(false); setGeoState('error'); setNoticeError(true); setNotice(readableError(e)); } } });
   const hidePresence = useHideRadarPresence({ mutation: { onSuccess: () => {
     setVisible(false); setCoords(null); coordsRef.current = null; setGeoState('off');
     void cache.invalidateQueries({ queryKey: getGetNearbyRadarBlipsQueryKey() });
@@ -106,6 +107,8 @@ export default function RadarPage({ inboxOnly = false }: { inboxOnly?: boolean }
     };
     coordsRef.current = next;
     setCoords(next);
+    if (next.accuracyMeters > 75) { setNoticeError(true); setNotice(`GPS accuracy is ${next.accuracyMeters} m. Waiting for a fix within 75 m; enable Precise Location or try outside.`); return; }
+    if (locationWatch.current !== null) { navigator.geolocation.clearWatch(locationWatch.current); locationWatch.current = null; }
     setGeoState('off');
     updatePresence.mutate({ data: next });
   }, [updatePresence]);
@@ -113,8 +116,11 @@ export default function RadarPage({ inboxOnly = false }: { inboxOnly?: boolean }
   const enable = () => {
     desiredVisibility.current = true;
     if (!navigator.geolocation) { setGeoState('error'); showNotice('Location is not available in this browser.', true); return; }
+    if (locationWatch.current !== null) navigator.geolocation.clearWatch(locationWatch.current);
     setGeoState('locating');
-    navigator.geolocation.getCurrentPosition(publishPosition, (error) => {
+    setNotice('Allow location access when your browser asks. Finding a precise GPS fix…');
+    locationWatch.current = navigator.geolocation.watchPosition(publishPosition, (error) => {
+      if (locationWatch.current !== null) { navigator.geolocation.clearWatch(locationWatch.current); locationWatch.current = null; }
       setGeoState(error.code === error.PERMISSION_DENIED ? 'denied' : 'error');
       setVisible(false);
       showNotice(error.code === error.PERMISSION_DENIED ? 'Location permission was denied. Radar stays off.' : 'Could not get a location fix. Try again when ready.', true);
@@ -123,6 +129,7 @@ export default function RadarPage({ inboxOnly = false }: { inboxOnly?: boolean }
 
   const hide = () => {
     desiredVisibility.current = false;
+    if (locationWatch.current !== null) { navigator.geolocation?.clearWatch(locationWatch.current); locationWatch.current = null; }
     setVisible(false);
     setCoords(null);
     coordsRef.current = null;
@@ -151,7 +158,7 @@ export default function RadarPage({ inboxOnly = false }: { inboxOnly?: boolean }
           const socket = new WebSocket(`${protocol}//${window.location.host}/ws?ticket=${encodeURIComponent(response.ticket)}`);
           ws.current = socket;
           socket.onopen = () => { retryCount.current = 0; setSocketState('online'); changed(); };
-          socket.onmessage = () => changed();
+          socket.onmessage = () => { changed(); void cache.invalidateQueries({ queryKey: getGetNearbyRadarBlipsQueryKey() }); };
           socket.onclose = () => {
             setSocketState('offline');
             if (!disposed && activeRef.current && document.visibilityState === 'visible') {
@@ -201,14 +208,15 @@ export default function RadarPage({ inboxOnly = false }: { inboxOnly?: boolean }
 
   useEffect(() => () => {
     desiredVisibility.current = false;
-    if (coordsRef.current) void fetch('/api/radar/presence', { method: 'DELETE', credentials: 'include', keepalive: true });
+    if (locationWatch.current !== null) { navigator.geolocation?.clearWatch(locationWatch.current); locationWatch.current = null; }
+    if (coordsRef.current) void getToken().then(token => fetch('/api/radar/presence', { method: 'DELETE', headers: token ? { Authorization: `Bearer ${token}` } : {}, keepalive: true }));
   }, []);
 
   useEffect(() => {
-    if (!notice) return;
+    if (!notice || noticeError || geoState === 'locating') return;
     const timer = window.setTimeout(() => setNotice(''), 4200);
     return () => window.clearTimeout(timer);
-  }, [notice]);
+  }, [notice, noticeError, geoState]);
 
 
   useEffect(() => {
@@ -269,15 +277,16 @@ export default function RadarPage({ inboxOnly = false }: { inboxOnly?: boolean }
             </button> : <button onClick={enable} disabled={geoState === 'locating' || updatePresence.isPending} data-testid="button-radar-enable" className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-[#130d19] hover:brightness-110 disabled:opacity-60">
               {geoState === 'locating' || updatePresence.isPending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}Enable nearby visibility
             </button>}
+            {geoState === 'locating' && <button onClick={hide} className="mt-3 text-sm text-white/60 underline">Cancel location check</button>}
             {visible && coords && <p className="mt-3 text-xs text-white/45" data-testid="status-gps-accuracy">GPS accuracy: about {coords.accuracyMeters} m</p>}
             {coords && coords.accuracyMeters > 100 && visible && <p className="mt-2 flex items-center gap-2 text-xs text-amber-200" data-testid="status-poor-accuracy"><CircleAlert className="h-3.5 w-3.5" />Low accuracy; nearby results may be limited.</p>}
-            <p className="mt-3 border-t border-white/[.08] pt-3 text-[11px] leading-5 text-white/35">Location permission is requested only when you enable visibility. Distance and bearing are approximate—not indoor or same-room precision.</p>
+            <p className="mt-3 border-t border-white/[.08] pt-3 text-[11px] leading-5 text-white/35">Tap Enable nearby visibility to request GPS permission. Your phone may remember a previous Allow or Deny choice. Distance and bearing are approximate—not indoor or same-room precision.</p>
           </div>
         </div>
       </section>}
 
       {(geoState === 'denied' || geoState === 'error') && <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-amber-200/15 bg-amber-100/[.04] p-4 text-sm text-amber-100" data-testid={`status-radar-${geoState}`}>
-        <span>{geoState === 'denied' ? 'Location permission denied. Radar remains off.' : 'Could not get a location fix. Radar remains off.'}</span><button onClick={enable} data-testid="button-radar-retry-location" className="shrink-0 rounded-full border border-white/15 px-3 py-2 text-xs">Try again</button>
+        <span>{geoState === 'denied' ? 'Location denied. On iPhone enable Location Services, Safari Websites location access, and Precise Location, then retry.' : 'Could not get a location fix. Radar remains off.'}</span><button onClick={enable} data-testid="button-radar-retry-location" className="shrink-0 rounded-full border border-white/15 px-3 py-2 text-xs">Try again</button>
       </div>}
       {nearby.isError && visible && <div className="mt-5 flex items-center justify-between rounded-2xl border border-rose-200/15 bg-rose-200/[.04] p-4 text-sm text-rose-100" data-testid="status-radar-nearby-error"><span>Nearby radar could not load.</span><button onClick={() => void nearby.refetch()} data-testid="button-radar-retry-nearby" className="rounded-full border border-white/15 px-3 py-2 text-xs">Retry</button></div>}
 
@@ -289,7 +298,7 @@ export default function RadarPage({ inboxOnly = false }: { inboxOnly?: boolean }
           </div>
           {!visible ? <div className="mt-5 rounded-2xl border border-dashed border-white/10 px-5 py-8 text-center" data-testid="status-radar-hidden"><Compass className="mx-auto h-6 w-6 text-white/25" /><p className="mt-3 text-sm text-white/60">Radar is off.</p><p className="mt-1 text-xs text-white/35">Turn it on when you want to be discoverable.</p></div>
             : nearby.isLoading ? <div className="mt-5 space-y-3" data-testid="status-radar-loading">{[1, 2, 3].map((n) => <div key={n} className="shimmer h-[74px] rounded-2xl" />)}</div>
-            : !nearby.data?.blips.length ? <div className="mt-5 rounded-2xl border border-dashed border-white/10 px-5 py-8 text-center" data-testid="status-radar-empty"><Radio className="mx-auto h-6 w-6 text-white/25" /><p className="mt-3 text-sm text-white/60">No one else is on radar just now.</p><p className="mt-1 text-xs text-white/35">Your presence stays under your control.</p></div>
+            : !nearby.data?.blips.length ? <div className="mt-5 rounded-2xl border border-dashed border-white/10 px-5 py-8 text-center" data-testid="status-radar-empty"><Radio className="mx-auto h-6 w-6 text-white/25" /><p className="mt-3 text-sm text-white/60">No one else is on radar just now.</p><p className="mt-1 text-xs text-white/35">Both people must enable Radar on different accounts, stay on this screen, and be within 100 m of each other inside a configured campus. Signing in alone does not publish location.</p></div>
             : <div className="mt-5 space-y-3" data-testid="list-radar-blips"><RadarCircle blips={nearby.data.blips} onPing={blipId => pingMutation.mutate({ data: { blipId } })} busy={pingMutation.isPending} />{nearby.data.blips.map((blip) => <BlipCard key={blip.blipId} blip={blip} onPing={() => pingMutation.mutate({ data: { blipId: blip.blipId } })} onBlock={() => { if (window.confirm('Block this anonymous participant?')) blockBlip.mutate({ blipId: blip.blipId }); }} onReport={() => runReport('blip', blip.blipId)} busy={pingMutation.isPending || blockBlip.isPending || reportBlip.isPending} />)}</div>}
           <p className="mt-5 flex items-start gap-2 border-t border-white/[.07] pt-4 text-[11px] leading-5 text-white/35"><Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent/70" />Approximate direction and broad distance only. No exact locations, identities, or room-level claims.</p>
         </section>}
@@ -351,7 +360,7 @@ export default function RadarPage({ inboxOnly = false }: { inboxOnly?: boolean }
         <p className="px-5 pb-4 text-[10px] text-white/30">Share only what feels comfortable. You can leave, block, or report at any time.</p>
       </section>}
     </div>
-    {notice && <div role="status" data-testid="status-radar-notice" className={`fixed bottom-5 left-1/2 z-50 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-2 rounded-full border px-4 py-3 text-xs shadow-2xl ${noticeError ? 'border-rose-200/25 bg-[#25171c] text-rose-100' : 'border-accent/20 bg-[#171820] text-white'}`}>{noticeError ? <ShieldAlert className="h-4 w-4 shrink-0 text-rose-200" /> : <Check className="h-4 w-4 shrink-0 text-accent" />}{notice}</div>}
+    {notice && <div role="status" data-testid="status-radar-notice" className={`fixed bottom-24 left-1/2 z-50 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-2 rounded-full border px-4 py-3 text-xs shadow-2xl ${noticeError ? 'border-rose-200/25 bg-[#25171c] text-rose-100' : 'border-accent/20 bg-[#171820] text-white'}`}>{noticeError ? <ShieldAlert className="h-4 w-4 shrink-0 text-rose-200" /> : <Check className="h-4 w-4 shrink-0 text-accent" />}{notice}</div>}
   </main>;
 }
 
