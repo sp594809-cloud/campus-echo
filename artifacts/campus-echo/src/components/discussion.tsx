@@ -15,7 +15,7 @@ export function Discussion({ coords, postId }: { coords?: Coordinates; postId?: 
   const key = ['discussion', userId, postId ?? 'public'];
   const request = useCallback(async <T,>(url: string, body?: unknown): Promise<T> => {
     const token = await getToken();
-    const response = await fetch(url, { credentials: 'include', method: body === undefined ? 'GET' : 'POST', headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+    const response = await fetch(url, { signal: AbortSignal.timeout(20000), credentials: 'include', method: body === undefined ? 'GET' : 'POST', headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error ?? 'Unable to connect. Please try again.');
     return data;
@@ -28,7 +28,7 @@ export function Discussion({ coords, postId }: { coords?: Coordinates; postId?: 
     <h2 className="mb-2 font-semibold text-white">{postId ? 'Replies' : 'Everyone chat'}</h2>
     <p className="mb-4 text-xs text-white/45">{postId ? 'Join the conversation using your campus alias.' : 'Join from anywhere. No location permission needed. Text only. Messages disappear after 24 hours.'}</p>
     <div className="max-h-[420px] space-y-3 overflow-y-auto" aria-live="polite" role="log">
-      {query.isLoading ? <p className="text-white/50">Loading conversation…</p> : query.isError ? <button className="text-rose-200 underline" onClick={() => void query.refetch()}>Could not load messages. Retry</button> : !query.data?.messages.length ? <p className="py-6 text-sm text-white/45">No messages yet. Say hello.</p> : query.data.messages.map(m => <article key={m.id} className={`rounded-xl p-3 ${m.fromMe ? 'bg-primary/15' : 'bg-white/5'}`}>
+      {query.isLoading ? <p className="text-white/50">Loading conversation…</p> : query.isError ? <div role="alert" className="text-rose-200"><p>{query.error.message || 'Could not load messages.'}</p><button className="mt-2 underline" onClick={() => void query.refetch()}>Retry</button></div> : !query.data?.messages.length ? <p className="py-6 text-sm text-white/45">No messages yet. Say hello.</p> : query.data.messages.map(m => <article key={m.id} className={`rounded-xl p-3 ${m.fromMe ? 'bg-primary/15' : 'bg-white/5'}`}>
         <div className="flex justify-between gap-2 text-[11px] text-white/45"><span>{m.alias}{m.fromMe ? ' · you' : ''}</span><time dateTime={m.createdAt}>{new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time></div>
         <p className="my-2 whitespace-pre-wrap break-words text-sm text-white/85">{m.content}</p>
         {!m.fromMe && <div className="flex gap-3 text-[10px] text-white/45"><button disabled={moderate.isPending} onClick={() => { const reason = window.prompt('Why are you reporting this message?'); if (reason?.trim()) moderate.mutate({ id: m.id, action: 'report', reason: reason.trim().slice(0, 200) }); }}>Report</button><button disabled={moderate.isPending} onClick={() => { if (window.confirm('Block this participant? Their messages will be hidden from you.')) moderate.mutate({ id: m.id, action: 'block' }); }}>Block</button></div>}

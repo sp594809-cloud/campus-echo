@@ -169,7 +169,7 @@ function FeedPage() {
   const refreshFeed = useCallback(() => {
     void cache.invalidateQueries({ queryKey: getGetFeedQueryKey({ sort }) });
   }, [cache, sort]);
-  useEffect(() => { if (!toast) return; const timer = window.setTimeout(() => setToast(''), 2800); return () => window.clearTimeout(timer); }, [toast]);
+  useEffect(() => { if (!toast || toastError) return; const timer = window.setTimeout(() => setToast(''), 2800); return () => window.clearTimeout(timer); }, [toast, toastError]);
 
   const onMutationSuccess = () => {
     refreshFeed();
@@ -177,9 +177,9 @@ function FeedPage() {
     setToastError(false);
     setToast('Your signal is out there.');
   };
-  const onMutationError = () => {
+  const onMutationError = (error: Error) => {
     setToastError(true);
-    setToast('Could not send that. Check your connection and try again.');
+    setToast(error.message || 'Sending was not confirmed. Your draft is still here. Please retry.');
   };
   const createPost = useCreatePost({ mutation: { onSuccess: onMutationSuccess, onError: onMutationError } });
   const createPoll = useCreatePoll({ mutation: { onSuccess: onMutationSuccess, onError: onMutationError } });
@@ -224,7 +224,7 @@ function FeedPage() {
           <div><p className="font-mono text-[10px] uppercase tracking-[.2em] text-accent">the campus frequency</p><h1 className="mt-2 font-display text-4xl font-semibold tracking-[-.07em] text-white md:text-5xl">Everyone, here<span className="text-primary">.</span></h1></div>
           <button onClick={refreshFeed} data-testid="button-refresh-feed" className="mb-1 grid h-10 w-10 place-items-center rounded-full border border-white/10 text-white/55 transition hover:border-accent/50 hover:text-accent"><RefreshCw className={`h-4 w-4 ${feed.isFetching ? 'animate-spin' : ''}`} /></button>
         </div>
-        {         feed.isError ? <FeedError retry={refreshFeed} /> :
+        {         feed.isError ? <FeedError retry={refreshFeed} message={feed.error?.message} /> :
          feed.isLoading ? <FeedSkeleton /> :
          <div>
            <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent/15 bg-accent/[.04] px-4 py-3" data-testid="status-nearby">
@@ -288,8 +288,8 @@ function OutsideRadius({ hubList, retry }: { hubList?: CampusHub[]; retry: () =>
   </div>;
 }
 
-function FeedError({ retry }: { retry: () => void }) {
-  return <div className="rounded-3xl border border-white/[.09] bg-[#121117] p-10 text-center" data-testid="status-feed-error"><div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-red-400/10 text-red-300"><Radio className="h-5 w-5" /></div><h2 className="mt-5 font-display text-xl font-semibold text-white">The signal dropped.</h2><p className="mt-2 text-sm text-white/45">Your campus is still there. The feed just needs a moment.</p><button onClick={retry} className="mt-6 rounded-full border border-white/15 px-5 py-2.5 text-sm text-white/70" data-testid="button-retry-feed"><RefreshCw className="mr-2 inline h-4 w-4" />Try again</button></div>;
+function FeedError({ retry, message }: { retry: () => void; message?: string }) {
+  return <div className="rounded-3xl border border-white/[.09] bg-[#121117] p-10 text-center" data-testid="status-feed-error"><div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-red-400/10 text-red-300"><Radio className="h-5 w-5" /></div><h2 className="mt-5 font-display text-xl font-semibold text-white">Could not load the feed.</h2><p role="alert" className="mt-2 break-words text-sm text-white/45">{message || 'Check your connection and retry.'}</p><button onClick={retry} className="mt-6 rounded-full border border-white/15 px-5 py-2.5 text-sm text-white/70" data-testid="button-retry-feed"><RefreshCw className="mr-2 inline h-4 w-4" />Try again</button></div>;
 }
 
 function FeedSkeleton() {

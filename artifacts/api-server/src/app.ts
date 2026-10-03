@@ -5,6 +5,7 @@ import { existsSync } from "node:fs";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { isDatabaseUnavailable } from "@workspace/db";
 
 
 const app: Express = express();
@@ -42,6 +43,11 @@ if (existsSync(path.join(publicDir, 'index.html'))) {
 
 const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   if (res.headersSent) { res.end(); return; }
+  if (isDatabaseUnavailable(err)) {
+    logger.error('Database connection unavailable; check the server DATABASE_URL.');
+    res.status(503).json({ error: 'The database connection is unavailable. Your action was not confirmed. Please retry when the connection is restored.' });
+    return;
+  }
   logger.error({ err }, 'Request failed');
   const status = err?.status === 413 ? 413 : err instanceof SyntaxError ? 400 : 500;
   res.status(status).json({ error: status === 500 ? 'Something went wrong. Please try again.' : 'Invalid request body.' });

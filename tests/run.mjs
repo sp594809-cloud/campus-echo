@@ -9,3 +9,6 @@ await import('./.ui.mjs');
 
 await build({ entryPoints: ['tests/supabase-auth.ts'], outfile: 'tests/.supabase-auth.mjs', bundle: true, platform: 'node', format: 'esm' });
 await import('./.supabase-auth.mjs');
+
+await build({ entryPoints: ['tests/database-outage.ts'], outfile: 'tests/.database-outage.mjs', bundle: true, platform: 'node', format: 'esm', banner: { js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" } });
+await import('./.database-outage.mjs');
