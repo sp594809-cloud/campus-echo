@@ -45,6 +45,7 @@ import {
   sendRadarChatMessage,
   sendRadarPing,
   updateRadarPresence,
+  markRadarChatRead,
   RadarServiceError,
 } from "../lib/radarService";
 import { createRadarSocketTicket } from "../lib/radarSockets";
@@ -247,6 +248,19 @@ router.post(
       body.data.details,
     );
     res.status(201).json(ReportRadarChatParticipantResponse.parse(result));
+  },
+);
+
+router.post(
+  "/radar/chats/:chatId/read",
+  async (req, res): Promise<void> => {
+    const chatId = typeof req.params.chatId === "string" ? req.params.chatId : "";
+    if (!chatId) {
+      res.status(400).json({ error: "Invalid chat ID." });
+      return;
+    }
+    const result = await markRadarChatRead(authenticatedUserId(res), chatId);
+    res.json(result);
   },
 );
 
