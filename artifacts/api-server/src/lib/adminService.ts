@@ -1,6 +1,8 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import {
   db,
+  groupMessagesTable,
+  groupReportsTable,
   discussionReportsTable,
   discussionsTable,
   pollReportsTable,
@@ -85,7 +87,9 @@ export async function getAdminQueue(userId: string) {
         .limit(50),
     ]);
 
+  const groupReports = await db.select({id:groupReportsTable.id,messageId:groupReportsTable.messageId,reason:groupReportsTable.reason,createdAt:groupReportsTable.createdAt,content:groupMessagesTable.content,hidden:groupMessagesTable.hidden}).from(groupReportsTable).leftJoin(groupMessagesTable,eq(groupReportsTable.messageId,groupMessagesTable.id)).orderBy(desc(groupReportsTable.createdAt)).limit(100);
   return {
+    groupReports,
     postReports,
     pollReports,
     discussionReports,
@@ -98,17 +102,19 @@ export async function getAdminQueue(userId: string) {
 
 export async function setContentHidden(
   adminUserId: string,
-  kind: "post" | "poll" | "discussion",
-  id: number,
+  kind: "post" | "poll" | "discussion" | "group",
+  id: number | string,
   hidden: boolean,
 ) {
   await requireAdmin(adminUserId);
   if (kind === "post") {
-    await db.update(postsTable).set({ hidden }).where(eq(postsTable.id, id));
+    await db.update(postsTable).set({ hidden }).where(eq(postsTable.id, Number(id)));
   } else if (kind === "poll") {
-    await db.update(pollsTable).set({ hidden }).where(eq(pollsTable.id, id));
+    await db.update(pollsTable).set({ hidden }).where(eq(pollsTable.id, Number(id)));
+  } else if(kind === "group") {
+    await db.update(groupMessagesTable).set({hidden}).where(eq(groupMessagesTable.id,String(id)));
   } else {
-    await db.update(discussionsTable).set({ hidden }).where(eq(discussionsTable.id, id));
+    await db.update(discussionsTable).set({ hidden }).where(eq(discussionsTable.id, Number(id)));
   }
   return { kind, id, hidden };
 }

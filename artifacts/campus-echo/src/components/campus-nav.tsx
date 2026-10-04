@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { MessageCircle, Radio, LayoutList, Shield } from 'lucide-react';
+import { MessageCircle, Users, LayoutList, Shield } from 'lucide-react';
 import { useAuth, signOut } from '@/lib/auth';
 import { useEffect, useRef, useState } from 'react';
 import { useGetRadarInbox, getGetRadarInboxQueryKey } from '@workspace/api-client-react';
@@ -72,7 +72,7 @@ export default function CampusNav() {
   const links = [
     { path: '/', label: 'Feed', Icon: LayoutList },
     { path: '/chat', label: 'Chat', Icon: MessageCircle },
-    { path: '/radar', label: 'Radar', Icon: Radio },
+    { path: '/groups', label: 'Groups', Icon: Users },
     ...(isAdmin ? [{ path: '/admin', label: 'Admin', Icon: Shield }] : []),
   ];
 

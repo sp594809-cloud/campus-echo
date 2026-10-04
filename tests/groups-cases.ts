@@ -1,0 +1,56 @@
+import assert from 'node:assert/strict';
+export async function verifyGroups(call:any,engine:any){
+ await engine.exec('DELETE FROM radar_blocks');
+ assert.equal((await call('/groups')).status,401);
+ assert.equal((await call('/groups','alice',{name:'x'})).status,400);
+ const made=await call('/groups','alice',{name:'Anonymous friends',description:'Talk from anywhere'});assert.equal(made.status,201);
+ const id=made.data.group.id,invite=made.data.inviteCode;
+ assert.match(invite,/^[a-f0-9]{48}$/);assert.equal('ownerId' in made.data.group,false);assert.equal('inviteHash' in made.data.group,false);
+ assert.equal((await call('/groups','eve')).data.groups.length,0);
+ assert.equal((await call(`/groups/${id}/messages`,'eve')).status,404);
+ assert.equal((await call(`/groups/${id}/messages`,'eve',{content:'forged'})).status,404);
+ assert.equal((await call('/groups/join','bob',{code:invite})).status,200);
+ assert.equal((await call('/groups/join','bob',{code:invite})).status,200);
+ const detail=await call(`/groups/${id}`,'bob');assert.equal(detail.data.members.length,2);
+ for(const m of detail.data.members){assert.equal('userId' in m,false);assert.equal('email' in m,false);}
+ assert.notEqual(detail.data.group.alias,made.data.group.alias);
+ assert.equal((await call(`/groups/${id}/invite`,'bob',{})).status,403);
+ assert.equal((await call(`/groups/${id}/messages`,'bob',{content:'<script>hi</script>'})).status,201);
+ const received=await call(`/groups/${id}/messages`,'alice');const msg=received.data.messages[0];assert.equal(msg.content,'<script>hi</script>');assert.equal(msg.fromMe,false);assert.equal('userId' in msg,false);
+ assert.equal((await call(`/groups/${id}/messages`,'bob',{content:'',userId:'alice'})).status,400);
+ assert.equal((await call(`/groups/${id}/messages`,'bob',{content:'x'.repeat(2001)})).status,400);
+ assert.equal((await call(`/groups/${id}/messages/${msg.id}/delete`,'eve',{})).status,404);
+ assert.equal((await call(`/groups/${id}/messages/${msg.id}/report`,'alice',{reason:'spam'})).status,200);
+ assert.equal((await call(`/groups/${id}/messages/${msg.id}/report`,'alice',{reason:'spam'})).status,200);
+ assert.equal((await engine.query('select * from echo_group_reports')).rows.length,1);
+ assert.equal((await call('/admin/queue','bob')).status,403);
+ await engine.exec("UPDATE profiles SET is_admin=true WHERE user_id='alice'");
+ const queue=await call('/admin/queue','alice');assert.equal(queue.status,200);assert.equal(queue.data.groupReports.length,1);
+ assert.equal((await call(`/admin/content/group/${msg.id}/visibility`,'alice',{hidden:true})).status,200);
+ assert.equal((await call(`/groups/${id}/messages`,'alice')).data.messages.length,0);
+ assert.equal((await call(`/admin/content/group/${msg.id}/visibility`,'alice',{hidden:false})).status,200);
+ assert.equal((await call(`/groups/${id}/messages/${msg.id}/block`,'alice',{})).status,200);
+ assert.equal((await call(`/groups/${id}/messages`,'alice')).data.messages.length,0);await engine.exec('DELETE FROM radar_blocks');
+ assert.equal((await call(`/groups/${id}/leave`,'bob',{})).status,200);
+ assert.equal((await call(`/groups/${id}/messages`,'bob')).status,404);
+ assert.equal((await call('/groups/join','bob',{code:invite})).status,200);
+ const member=detail.data.members.find((m:any)=>m.fromMe);
+ assert.equal((await call(`/groups/${id}/members/${member.id}/remove`,'alice',{})).status,200);
+ assert.equal((await call('/groups/join','bob',{code:invite})).status,403);
+ const newInvite=await call(`/groups/${id}/invite`,'alice',{});assert.equal(newInvite.status,200);
+ assert.equal((await call('/groups/join','eve',{code:invite})).status,404);
+ assert.equal((await call('/groups/join','eve',{code:newInvite.data.inviteCode})).status,200);
+ assert.equal((await call(`/groups/${id}/messages/${msg.id}/delete`,'eve',{})).status,403);
+ assert.equal((await call(`/groups/${id}/messages/${msg.id}/delete`,'alice',{})).status,200);
+ // Cursor handles messages sharing one timestamp without duplicates or skipped rows.
+ const [{id:memberId}]= (await engine.query("select id from echo_group_members where user_id='alice' limit 1")).rows;
+ await engine.exec(`INSERT INTO echo_group_messages(id,group_id,member_id,content,created_at) SELECT gen_random_uuid(),'${id}','${memberId}','history '||n,'2026-10-04T00:00:00Z' FROM generate_series(1,105) n;`);
+ const page=await call(`/groups/${id}/messages`,'alice');assert.equal(page.data.messages.length,100);assert.ok(page.data.nextCursor);
+ const older=await call(`/groups/${id}/messages?before=${page.data.nextCursor}`,'alice');assert.equal(older.data.messages.length,5);assert.equal(new Set([...page.data.messages,...older.data.messages].map(m=>m.id)).size,105);
+ assert.equal((await call(`/groups/${id}/messages?before=invalid`,'alice')).status,400);
+ for(let i=0;i<15;i++)assert.equal((await call(`/groups/${id}/messages`,'eve',{content:'Message '+i})).status,201);
+ assert.equal((await call(`/groups/${id}/messages`,'eve',{content:'rate limited'})).status,429);
+ assert.equal((await call(`/groups/${id}`,'eve',undefined,'DELETE')).status,403);
+ assert.equal((await call(`/groups/${id}`,'alice',undefined,'DELETE')).status,200);
+ assert.equal((await call(`/groups/${id}/messages`,'eve')).status,404);
+}

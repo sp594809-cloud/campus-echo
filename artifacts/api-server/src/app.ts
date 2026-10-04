@@ -9,6 +9,11 @@ import { isDatabaseUnavailable } from "@workspace/db";
 
 
 const app: Express = express();
+app.use((_req,res,next) => {
+  res.setHeader('Permissions-Policy','geolocation=()');
+  res.setHeader('Referrer-Policy','no-referrer');
+  next();
+});
 
 app.use(
   pinoHttp({

@@ -49,6 +49,7 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
   const [busy, setBusy] = useState(false);
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   const home = `${window.location.origin}${base}/`;
+  const target = window.location.pathname === `${base}/groups` ? window.location.pathname+window.location.hash : base || '/';
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!client || busy) return;
@@ -61,12 +62,12 @@ export function AuthForm({ mode }: { mode: 'sign-in' | 'sign-up' }) {
       } else if (mode === 'sign-up') {
         const { data, error } = await client.auth.signUp({ email, password, options: { emailRedirectTo: home } });
         if (error) throw error;
-        if (data.session) window.location.assign(base || '/');
+        if (data.session) window.location.assign(target);
         else setNotice('Check your email to confirm your account, then sign in.');
       } else {
         const { error } = await client.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        window.location.assign(base || '/');
+        window.location.assign(target);
       }
     } catch (error) { setNotice(error instanceof Error ? error.message : 'Unable to sign in. Try again.'); }
     finally { setBusy(false); }

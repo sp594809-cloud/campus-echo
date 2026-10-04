@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  Flame, LoaderCircle, Plus, Radio, RefreshCw, ShieldCheck,
+  Flame, LoaderCircle, Plus, Users, RefreshCw, ShieldCheck,
 } from 'lucide-react';
 import {
   getGetFeedQueryKey, getGetMyProfileQueryKey,
@@ -77,7 +77,7 @@ export default function FeedPage() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 md:px-8">
         <Brand />
         <div className="flex items-center gap-3">
-          <a href={`${basePath}/radar`} data-testid="link-open-radar" className="inline-flex items-center gap-2 rounded-full border border-accent/20 bg-accent/[.06] px-3 py-2 text-xs font-semibold text-accent transition hover:bg-accent/[.12]"><Radio className="h-3.5 w-3.5" /><span>Radar</span></a>
+          <a href={`${basePath}/groups`} data-testid="link-open-groups" className="inline-flex items-center gap-2 rounded-full border border-accent/20 bg-accent/[.06] px-3 py-2 text-xs font-semibold text-accent transition hover:bg-accent/[.12]"><Users className="h-3.5 w-3.5" /><span>Groups</span></a>
           {profile.data && <div className="hidden items-center gap-2 rounded-full border border-white/[.08] bg-white/[.03] px-3 py-2 sm:flex" data-testid="profile-alias"><span className="h-2 w-2 rounded-full bg-accent" /><span className="text-xs text-white/70">{profile.data.alias}</span>{profile.data.studentVerified && <ShieldCheck className="h-3.5 w-3.5 text-accent" />}</div>}
         </div>
       </div>

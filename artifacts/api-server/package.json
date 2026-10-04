@@ -28,6 +28,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "catalog:",
+    "@types/web-push": "3.6.4",
     "@types/ws": "^8.18.2",
     "esbuild": "0.28.2",
     "esbuild-plugin-pino": "^2.3.3",
@@ -35,7 +36,7 @@
     "thread-stream": "3.1.0"
   },
   "optionalDependencies": {
-    "web-push": "^3.6.7",
-    "redis": "^4.7.0"
+    "redis": "^4.7.0",
+    "web-push": "^3.6.7"
   }
 }

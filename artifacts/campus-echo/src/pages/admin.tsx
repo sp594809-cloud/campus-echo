@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 
 type Queue = {
+  groupReports: Array<{id:string;messageId:string;content?:string|null;reason:string;hidden?:boolean|null}>;
   postReports: Array<{ id: number; postId: number; content?: string | null; hidden?: boolean | null; reason?: string | null; createdAt: string }>;
   pollReports: Array<{ id: number; pollId: number; question?: string | null; hidden?: boolean | null; reason?: string | null; createdAt: string }>;
   discussionReports: Array<{ id: number; messageId: number; content?: string | null; hidden?: boolean | null; reason?: string | null; createdAt: string }>;
@@ -42,7 +43,7 @@ export default function AdminPage() {
     if (isSignedIn) void load();
   }, [isSignedIn, load]);
 
-  async function setVisibility(kind: 'post' | 'poll' | 'discussion', id: number, hidden: boolean) {
+  async function setVisibility(kind: 'post' | 'poll' | 'discussion' | 'group', id: number|string, hidden: boolean) {
     setBusy(true);
     try {
       const token = await getToken();
@@ -85,6 +86,7 @@ export default function AdminPage() {
       {!queue && !error && <p className="mt-6 text-sm text-white/40">Loading…</p>}
       {queue && (
         <div className="mt-8 space-y-10">
+          <section><h2 className="text-lg font-medium">Group message reports ({queue.groupReports?.length ?? 0})</h2><ul className="mt-3 space-y-3">{queue.groupReports?.map(r=><li className="echo-panel" key={r.id}><p className="whitespace-pre-wrap">{r.content}</p><p className="my-2 text-xs text-white/50">{r.reason}</p><button className="echo-outline" disabled={busy} onClick={()=>void setVisibility('group',r.messageId,true)}>Hide</button><button className="echo-outline ml-2" disabled={busy} onClick={()=>void setVisibility('group',r.messageId,false)}>Restore</button></li>)}</ul></section>
           <section>
             <h2 className="text-lg font-medium">Post reports ({queue.postReports.length})</h2>
             <ul className="mt-3 space-y-3">

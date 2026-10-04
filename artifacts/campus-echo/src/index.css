@@ -463,3 +463,4 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     inset: -1px;
   }
 }
+.echo-panel{border:1px solid rgba(255,255,255,.1);background:#15131d;border-radius:20px;padding:20px;min-width:0}.echo-input{display:block;width:100%;min-width:0;border:1px solid rgba(255,255,255,.15);background:#0e0d14;color:white;border-radius:12px;padding:12px;margin:6px 0 14px;font:inherit}.echo-label{display:block;font-size:13px;color:#c5c0d0;margin-top:14px}.echo-button,.echo-outline{min-height:44px;border-radius:12px;padding:10px 16px;font-size:13px;font-weight:650}.echo-button{background:#b06fff;color:#12091c}.echo-outline{border:1px solid rgba(255,255,255,.18);color:#e4dfed}button:disabled{opacity:.5;cursor:default}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid #4fedff;outline-offset:3px}

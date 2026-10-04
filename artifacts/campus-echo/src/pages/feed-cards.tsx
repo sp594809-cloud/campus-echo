@@ -25,9 +25,9 @@ export function PostCard({ post, coords, onVote, onReport, busy }: { post: Post;
   return <article className="rounded-3xl border border-white/[.08] bg-[#121117] p-5" data-testid={`card-post-${post.id}`}>
     <div className="mb-3 flex items-center justify-between text-[10px] font-mono uppercase tracking-[.14em] text-white/35"><span>{timeSince(post.createdAt)}</span><span>{expiresIn(post.expiresAt)}</span></div>
     <p className="text-[15px] leading-6 text-white/90">{post.content}</p>
-    <div className="mt-4 flex flex-wrap items-center gap-2">
-      <button type="button" disabled={busy} onClick={() => onVote(1)} className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-white/70"><ArrowUp className="mr-1 inline h-3.5 w-3.5" />{post.upvotes}</button>
-      <button type="button" disabled={busy} onClick={() => onVote(-1)} className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-white/70"><ArrowDown className="mr-1 inline h-3.5 w-3.5" />{post.downvotes}</button>
+    <div className="mt-4 flex flex-wrap items-center gap-2"><span className="text-xs text-white/55">{post.score} points</span>
+      <button type="button" disabled={busy} onClick={() => onVote(1)} className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-white/70"><ArrowUp className="mr-1 inline h-3.5 w-3.5" />Upvote</button>
+      <button type="button" disabled={busy} onClick={() => onVote(-1)} className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-white/70"><ArrowDown className="mr-1 inline h-3.5 w-3.5" />Downvote</button>
       <button type="button" disabled={busy} onClick={onReport} className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-white/50"><Flag className="mr-1 inline h-3.5 w-3.5" />Report</button>
     </div>
     <div className="mt-4 border-t border-white/[.07] pt-4"><Discussion postId={post.id} /></div>
@@ -40,8 +40,8 @@ export function PollCard({ poll, onVote, onReport, busy }: { poll: Poll; onVote:
     <p className="text-[15px] font-medium leading-6 text-white">{poll.question}</p>
     <div className="mt-4 space-y-2">
       {poll.options.map((opt) => (
-        <button key={opt.id} type="button" disabled={busy || poll.userVotedOptionId != null} onClick={() => onVote(opt.id)} className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm ${
-          poll.userVotedOptionId === opt.id ? 'border-primary/40 bg-primary/[.1] text-white' : 'border-white/[.08] text-white/75'
+        <button key={opt.id} type="button" disabled={busy || poll.myVoteOptionId != null} onClick={() => onVote(opt.id)} className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm ${
+          poll.myVoteOptionId === opt.id ? 'border-primary/40 bg-primary/[.1] text-white' : 'border-white/[.08] text-white/75'
         }`}>
           <span>{opt.text}</span>
           <span className="text-xs text-white/40">{opt.votes}</span>

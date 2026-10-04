@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import groupsRouter from './groups';
 import healthRouter from "./health";
 import hubsRouter from "./hubs";
 import profileRouter from "./profile";
@@ -14,7 +15,8 @@ import pushRouter from "./push";
 const router: IRouter = Router();
 
 router.use(healthRouter);
-router.use(hubsRouter);
+router.use(groupsRouter);
+
 router.use(profileRouter);
 router.use(feedRouter);
 router.use(postsRouter);

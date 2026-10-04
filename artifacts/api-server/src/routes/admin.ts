@@ -22,15 +22,15 @@ router.get("/admin/queue", async (_req, res): Promise<void> => {
 
 router.post("/admin/content/:kind/:id/visibility", async (req, res): Promise<void> => {
   const kind = req.params.kind;
-  const id = Number(req.params.id);
+  const id = kind === "group" ? String(req.params.id) : Number(req.params.id);
   const hidden = Boolean(req.body?.hidden);
-  if (!["post", "poll", "discussion"].includes(kind) || !Number.isFinite(id)) {
+  if (!["post", "poll", "discussion", "group"].includes(kind) || (kind === "group" ? !/^[a-f0-9-]{36}$/.test(String(id)) : !Number.isFinite(id))) {
     res.status(400).json({ error: "Invalid content target." });
     return;
   }
   const result = await setContentHidden(
     authenticatedUserId(res),
-    kind as "post" | "poll" | "discussion",
+    kind as "post" | "poll" | "discussion" | "group",
     id,
     hidden,
   );

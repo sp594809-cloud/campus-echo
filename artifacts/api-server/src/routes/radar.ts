@@ -52,6 +52,10 @@ import { createRadarSocketTicket } from "../lib/radarSockets";
 import { ensureProfile } from "../lib/profiles";
 
 const router: IRouter = Router();
+// Retire location collection for all clients, including older installed versions.
+router.all(['/radar/presence','/radar/nearby','/radar/pings','/radar/blips/:blipId/block','/radar/blips/:blipId/report'], (_req,res) => {
+  res.status(410).json({error:'Location features have been retired. Use anonymous groups and chat.'});
+});
 router.use(requireAuth);
 
 router.put("/radar/presence", async (req, res): Promise<void> => {

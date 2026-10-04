@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import { verifyGroups } from './groups-cases';
+import groups from '../artifacts/api-server/src/routes/groups';
+import admin from '../artifacts/api-server/src/routes/admin';
 import { readFile } from 'node:fs/promises';
 import { once } from 'node:events';
 import express from '../artifacts/api-server/node_modules/express';
@@ -13,8 +17,11 @@ import { createRadarSocketTicket, attachRadarWebSocket, sendRadarEvent } from '.
 import { coarseRadarLocation } from '../artifacts/api-server/src/lib/radarGeo';
 
 await engine.exec(await readFile('lib/db/drizzle/0000_campus_echo.sql', 'utf8'));
+await engine.exec("CREATE ROLE anon; CREATE ROLE authenticated;");
+await engine.exec(await readFile('lib/db/migrations/add-admin-reads-push.sql','utf8'));
+await engine.exec(await readFile('supabase/migrations/20261004094512_anonymous_groups.sql','utf8'));
 await engine.exec(`INSERT INTO campus_hubs(name,city,country,latitude,longitude) VALUES ('Test Campus','Test City','India',23,72); INSERT INTO profiles(user_id,alias) VALUES ('alice','Quiet Fox'),('bob','Blue Owl'),('eve','Green Leaf'); INSERT INTO posts(campus_id,user_id,content,expires_at) VALUES (1,'alice','A campus question',now()+interval '1 day');`);
-const app = express(); app.use((req: any, _res, next) => { req.log = { warn() {} }; next(); }); app.use(express.json()); app.use('/api', feed); app.use('/api', posts); app.use('/api', polls); app.use('/api', discussions); app.use('/api', radar);
+const app = express(); app.use((req: any, _res, next) => { req.log = { warn() {} }; next(); }); app.use(express.json()); app.use('/api', groups);app.use('/api',admin); app.use('/api', feed); app.use('/api', posts); app.use('/api', polls); app.use('/api', discussions); app.use('/api', radar);
 app.use((err: Error, _req: unknown, res: any, _next: unknown) => { console.error(err); res.status(500).json({ error: err.message }); });
 const server = app.listen(0, '127.0.0.1'); await once(server, 'listening'); attachRadarWebSocket(server);
 const address = server.address() as { port: number }; const origin = `http://127.0.0.1:${address.port}`;
@@ -52,20 +59,16 @@ try {
   assert.equal((await call('/chat/public','alice',{...coords,content:'Rate limited'})).status,429);
   await engine.exec("DELETE FROM radar_blocks; UPDATE discussions SET expires_at=now()-interval '1 second';");
   assert.equal((await call('/chat/public'+query,'bob')).data.messages.length,0);
-  assert.equal(coarseRadarLocation(23,72,23.01,72),null);
-  assert.equal(coarseRadarLocation(23,72,23.0001,72)?.direction,'N');
-  assert.equal((await call('/radar/presence','alice',{latitude:0,longitude:0,accuracyMeters:10},'PUT')).status,403);
-  // Radar two-user flow: presence, nearby, consent, private access and blocking.
-  assert.equal((await call('/radar/presence','alice',{...coords,accuracyMeters:10},'PUT')).status,200);
-  assert.equal((await call('/radar/presence','bob',{latitude:23.0001,longitude:72,accuracyMeters:10},'PUT')).status,200);
-  const nearby = await call('/radar/nearby?latitude=23&longitude=72&accuracyMeters=10','alice'); assert.equal(nearby.status,200); assert.equal(nearby.data.blips.length,1); assert.equal('latitude' in nearby.data.blips[0],false);
-  const ping = await call('/radar/pings','alice',{blipId:nearby.data.blips[0].blipId}); assert.equal(ping.status,201);
-  const accepted = await call(`/radar/pings/${ping.data.pingId}/accept`,'bob',{}); assert.equal(accepted.status,201);
-  const chatId = accepted.data.chatId;
+  assert.equal((await call('/radar/presence','alice',{latitude:23,longitude:72,accuracyMeters:10},'PUT')).status,410);
+  assert.equal((await call('/radar/nearby?latitude=23&longitude=72','alice')).status,410);
+  assert.equal((await call('/radar/pings','alice',{blipId:randomUUID()})).status,410);
+  // Existing private chats work without location collection.
+  const pingId=randomUUID(), chatId=randomUUID();
+  await engine.exec(`INSERT INTO radar_pings(id,sender_user_id,recipient_user_id,status,expires_at) VALUES ('${pingId}','alice','bob','accepted',now()+interval '1 day');INSERT INTO radar_chats(id,ping_id,participant_one_user_id,participant_two_user_id) VALUES ('${chatId}','${pingId}','alice','bob');`);
   const message = await call(`/radar/chats/${chatId}/messages`,'alice',{text:'Private hello'}); assert.equal(message.status,201);
   const bobMessages = await call(`/radar/chats/${chatId}/messages`,'bob'); assert.equal(bobMessages.data.messages[0].text,'Private hello');
   assert.equal((await call(`/radar/chats/${chatId}/messages`,'eve')).status,404);
-  assert.equal((await call('/radar/presence','alice',undefined,'DELETE')).status,204);
+  assert.equal((await call('/radar/presence','alice',undefined,'DELETE')).status,410);
   assert.equal((await call(`/radar/chats/${chatId}/messages`,'alice',{text:'Chat while hidden'})).status,201);
   const ticket = await createRadarSocketTicket('bob');
   const socket = new WebSocket(origin.replace('http','ws')+'/ws?ticket='+ticket.ticket,{origin});
@@ -74,9 +77,6 @@ try {
   replay.on('error', () => {}); const [, rejection] = await once(replay,'unexpected-response'); assert.equal(rejection.statusCode,401); replay.terminate();
   assert.equal((await call(`/radar/chats/${chatId}/block`,'bob',{})).status,204);
   assert.equal((await call(`/radar/chats/${chatId}/messages`,'alice')).status,404);
-  await engine.exec('DELETE FROM campus_hubs');
-  const unconfigured = await call('/radar/presence','alice',{...coords,accuracyMeters:10},'PUT');
-  assert.equal(unconfigured.status,503);
-  assert.match(String(unconfigured.data.error), /No campus is configured/);
-  console.log('PASS: campus auth/geofence, text validation, two-user public chat/replies, privacy, reports, blocking, expiry, rate limit, radar proximity, consent, private chat access, hidden chat, WebSocket delivery and single-use tickets.');
+  await verifyGroups(call,engine);
+  console.log('PASS: auth, public chat/replies, feed/polls, retired location endpoints, private chat access, WebSocket tickets, anonymous groups, invites, membership, reports, blocking, history and rate limits.');
 } finally { server.closeAllConnections(); await new Promise<void>(r=>server.close(()=>r())); await engine.close(); }

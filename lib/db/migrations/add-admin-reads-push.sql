@@ -27,3 +27,8 @@ CREATE INDEX IF NOT EXISTS push_subscriptions_user_idx ON push_subscriptions (us
 
 -- Promote a specific user to admin (replace USER_ID after first sign-up):
 -- UPDATE profiles SET is_admin = true WHERE user_id = 'USER_ID';
+
+-- Server routes authorize access; browser roles cannot read private records.
+ALTER TABLE radar_chat_reads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON radar_chat_reads, push_subscriptions FROM anon, authenticated;
