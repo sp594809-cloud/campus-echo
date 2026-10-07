@@ -10,7 +10,7 @@ const client = new QueryClient({defaultOptions:{queries:{retry:false}}});
 function render(node: React.ReactNode) { return renderToStaticMarkup(<QueryClientProvider client={client}><Router ssrPath="/chat">{node}</Router></QueryClientProvider>); }
 const navigation = render(<CampusNav />);
 assert.match(navigation, /href="\/chat"/); assert.match(navigation, /aria-current="page"/); assert.match(navigation, />Feed</); assert.match(navigation, />Groups</); assert.doesNotMatch(navigation, /href="\/radar"/);
-const chat = render(<ChatPage />); assert.match(chat,/Everyone chat/); assert.match(chat,/Private chats/); assert.match(chat,/No location permission needed/);
+const chat = render(<ChatPage />); assert.match(chat,/Everyone chat/); assert.doesNotMatch(chat,/Private chats/); assert.match(chat,/No location permission needed/);
 client.setQueryData(['discussion','alice','public'], {messages:[{id:1,alias:'Blue Owl',content:'<script>bad()</script>',createdAt:new Date().toISOString(),fromMe:false}]});
 const conversation=render(<Discussion coords={{latitude:23,longitude:72}} />);
 assert.match(conversation,/&lt;script&gt;bad\(\)&lt;\/script&gt;/); assert.doesNotMatch(conversation,/<script>/); assert.match(conversation,/Report/); assert.match(conversation,/Block/); assert.match(conversation,/textarea/); assert.doesNotMatch(conversation,/type="file"/);

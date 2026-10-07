@@ -9,6 +9,7 @@ import { isDatabaseUnavailable } from "@workspace/db";
 
 
 const app: Express = express();
+if (process.env.NODE_ENV === "production") app.set("trust proxy", 1);
 app.use((_req,res,next) => {
   res.setHeader('Permissions-Policy','geolocation=()');
   res.setHeader('Referrer-Policy','no-referrer');

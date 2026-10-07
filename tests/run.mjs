@@ -7,8 +7,11 @@ await import('./.integration.mjs');
 await build({ entryPoints: ['tests/ui.tsx'], outfile: 'tests/.ui.mjs', bundle: true, platform: 'node', format: 'esm', jsx: 'automatic', alias: { '@': resolve('artifacts/campus-echo/src'), 'react': resolve('artifacts/campus-echo/node_modules/react'), '@tanstack/react-query': resolve('artifacts/campus-echo/node_modules/@tanstack/react-query/build/modern/index.js'), 'wouter': resolve('artifacts/campus-echo/node_modules/wouter') }, banner: { js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" }, plugins: [{ name: 'auth-render-fixture', setup(b) { b.onResolve({ filter: /^@\/lib\/auth$/ }, () => ({ path: resolve('tests/test-auth-ui.ts') })); } }] });
 await import('./.ui.mjs');
 
-await build({ entryPoints: ['tests/supabase-auth.ts'], outfile: 'tests/.supabase-auth.mjs', bundle: true, platform: 'node', format: 'esm' });
+await build({ entryPoints: ['tests/supabase-auth.ts'], outfile: 'tests/.supabase-auth.mjs', bundle: true, platform: 'node', format: 'esm', external: ['@electric-sql/pglite'], plugins: [{name:'auth-test-db',setup(b){b.onResolve({filter:/^@workspace\/db$/},()=>({path:resolve('tests/test-db.ts')}));}}] });
 await import('./.supabase-auth.mjs');
 
 await build({ entryPoints: ['tests/database-outage.ts'], outfile: 'tests/.database-outage.mjs', bundle: true, platform: 'node', format: 'esm', banner: { js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" } });
 await import('./.database-outage.mjs');
+
+await build({entryPoints:['tests/instant-session.ts'],outfile:'tests/.instant-session.mjs',bundle:true,platform:'node',format:'esm',external:['@electric-sql/pglite'],banner:{js:"import { createRequire } from 'node:module'; const require=createRequire(import.meta.url);"},plugins:[{name:'session-db',setup(b){b.onResolve({filter:/^@workspace\/db$/},()=>({path:resolve('tests/test-db.ts')}));}}]});
+await import('./.instant-session.mjs');

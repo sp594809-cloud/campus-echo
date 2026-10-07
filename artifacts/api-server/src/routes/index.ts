@@ -12,7 +12,9 @@ import discussionsRouter from "./discussions";
 import adminRouter from "./admin";
 import pushRouter from "./push";
 
+import sessionRouter from './session';
 const router: IRouter = Router();
+router.use(sessionRouter);
 
 router.use(healthRouter);
 router.use(groupsRouter);

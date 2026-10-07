@@ -1,3 +1,13 @@
+# Campus Echo — public anonymous chat
+
+Enter an email and receive an automatically generated alias. There is no password, OTP, username selection or location prompt. All members share the public text chat. Reports, blocking and message rate limits are retained. Public messages retain their existing 24-hour expiry.
+
+Instant entry creates a browser identity, not a verified email account. The email is validated but not saved, and cannot recover or impersonate an existing identity. The server issues a random 256-bit HttpOnly, SameSite cookie, stores only its SHA-256 hash, and expires it after 30 days. Leaving revokes the session. Existing Supabase sessions continue to work for existing members and moderators.
+
+Before deploying elsewhere, apply `supabase/migrations/20261007162000_instant_echo_sessions.sql`. The sessions table is server-only with RLS and no client grants. Keep the existing DATABASE_URL on the server. No new signing secrets or Supabase auth settings are required.
+
+Run `pnpm install --frozen-lockfile`, `pnpm test`, and `pnpm build`. Render uses the existing build and start commands.
+
 # Campus Echo
 
 Anonymous text conversations, a campus feed, polls, public chat, and private invite-only groups. Students see aliases rather than account names. GPS and nearby Radar endpoints are disabled; the browser is denied geolocation permission by the response policy.

@@ -1,4 +1,4 @@
-import { lte } from "drizzle-orm";
+import { lte, sql } from "drizzle-orm";
 import {
   db,
   discussionsTable,
@@ -12,6 +12,7 @@ const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 
 export async function removeExpiredContent(): Promise<void> {
   const cutoff = new Date();
+  await db.execute(sql`delete from public.echo_sessions where expires_at <= now()`);
   const [expiredPosts, expiredPolls] = await Promise.all([
     db
       .delete(postsTable)

@@ -1,15 +1,16 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Discussion } from '@/components/discussion';
-import PrivateChats from './private-chats';
-
+import { useAuth, signOut } from '@/lib/auth';
 export default function ChatPage() {
-  const [tab, setTab] = useState<'public' | 'private'>('public');
-  return <main className="min-h-screen pb-24">
-    <header className="mx-auto max-w-6xl px-4 pt-8"><p className="text-xs uppercase tracking-widest text-accent">Campus Echo</p><h1 className="mt-2 text-4xl font-semibold text-white">Chat</h1><p className="mt-3 text-sm text-white/50">Anonymous conversations from anywhere. All text. All in one place.</p>
-      <div className="my-6 flex gap-3" role="tablist" aria-label="Chat type">{(['public', 'private'] as const).map(t => <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`rounded-full px-5 py-3 text-sm ${tab === t ? 'bg-primary text-black' : 'border border-white/15 text-white/60'}`}>{t === 'public' ? 'Everyone chat' : 'Private chats'}</button>)}</div>
-    </header>
-    {tab === 'private' ? <PrivateChats /> : <div className="mx-auto max-w-3xl px-4">
-      <Discussion />
-    </div>}
+  const {getToken}=useAuth(); const [error,setError]=useState('');
+  const profile=useQuery({queryKey:['my-alias'],queryFn:async()=>{
+    const token=await getToken();const response=await fetch('/api/me',{credentials:'include',headers:token?{Authorization:`Bearer ${token}`}:{}});
+    if(!response.ok) throw new Error('Could not load your name.');return response.json() as Promise<{alias:string}>;
+  }});
+  return <main className="mx-auto min-h-[100dvh] max-w-3xl px-4 pb-8">
+    <header className="flex items-start justify-between gap-3 py-6"><div><p className="text-xs uppercase tracking-widest text-accent">Campus Echo</p><h1 className="mt-2 text-3xl font-semibold text-white">Everyone chat</h1><p className="mt-2 text-sm text-white/50">You are {profile.data?.alias ?? 'getting your anonymous name…'}</p></div><button className="rounded-full border border-white/15 px-4 py-2 text-xs text-white/70" onClick={()=>void signOut().catch(()=>setError('Could not leave the chat. Please retry.'))}>Leave</button></header>
+    {error && <p role="alert" className="mb-3 text-rose-200">{error}</p>}
+    <Discussion />
   </main>;
 }

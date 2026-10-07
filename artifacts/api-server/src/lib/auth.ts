@@ -1,7 +1,15 @@
+import { findGuestSession } from './guestSessions';
 import type { RequestHandler, Response } from "express";
 export const requireAuth: RequestHandler = async (req, res, next) => {
   const token = req.headers.authorization?.match(/^Bearer (\S+)$/i)?.[1];
-  if (!token) { res.status(401).json({ error: "Sign in to continue." }); return; }
+  if (!token) {
+    try {
+      const session = await findGuestSession(req);
+      if (session) { res.locals.userId=session.user_id; next(); return; }
+      res.status(401).json({error:'Enter the chat to continue.'});
+    } catch { res.status(503).json({error:'Your session is temporarily unavailable.'}); }
+    return;
+  }
   // Public project settings only; no service-role key or password belongs here.
   const defaultUrl = "https://rztexnwjsmlofmlelovq.supabase.co";
   const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || defaultUrl).replace(/\/$/, "");
